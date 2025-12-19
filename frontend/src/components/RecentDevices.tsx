@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
 import { Clock, X, Link2 } from 'lucide-react'
 import { getPairingHistory, removePairing, generatePairingRoomId } from '../utils/pairingHistory'
 
@@ -9,10 +10,17 @@ interface RecentDevicesProps {
 }
 
 export function RecentDevices({ currentDeviceName, onConnect, onRemove }: RecentDevicesProps) {
-  const allDevices = getPairingHistory()
-  
-  // Filter out the current device name - a device shouldn't show itself in recent connections
-  const recentDevices = allDevices.filter(device => device.deviceName !== currentDeviceName)
+  const [recentDevices, setRecentDevices] = useState(() => {
+    const allDevices = getPairingHistory()
+    // Filter out the current device name - a device shouldn't show itself in recent connections
+    return allDevices.filter(device => device.deviceName !== currentDeviceName)
+  })
+
+  // Update when currentDeviceName changes
+  useEffect(() => {
+    const allDevices = getPairingHistory()
+    setRecentDevices(allDevices.filter(device => device.deviceName !== currentDeviceName))
+  }, [currentDeviceName])
 
   if (recentDevices.length === 0) {
     return null
@@ -26,6 +34,8 @@ export function RecentDevices({ currentDeviceName, onConnect, onRemove }: Recent
   const handleRemove = (deviceName: string, e: React.MouseEvent) => {
     e.stopPropagation()
     removePairing(deviceName)
+    // Update state immediately to reflect the removal
+    setRecentDevices(prev => prev.filter(device => device.deviceName !== deviceName))
     onRemove?.(deviceName)
   }
 

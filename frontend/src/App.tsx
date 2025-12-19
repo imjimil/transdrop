@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Laptop, Smartphone, Tablet, Sun, Moon, Link2, User, Pencil } from 'lucide-react'
+import { Laptop, Smartphone, Tablet, Sun, Moon, Link2, User, Pencil, X } from 'lucide-react'
 import './App.css'
 import { useWebRTC } from './hooks/useWebRTC'
 import { useFileTransfer } from './hooks/useFileTransfer'
@@ -145,13 +145,30 @@ function App() {
   }, [deviceName])
 
   // WebRTC connection
-  const { socket, joinRoom, sendData } = useWebRTC({
+  const { socket, joinRoom, sendData, leaveRoom } = useWebRTC({
     roomId: currentRoomId || undefined,
     deviceName,
     onPeerConnected: handlePeerConnected,
     onPeerDisconnected: handlePeerDisconnected,
     onDataReceived: handleDataReceived,
   })
+
+  // Handle disconnecting from a device
+  const handleDisconnectDevice = useCallback((device: Device, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent triggering device click
+    
+    // Remove device from discovered devices
+    setDiscoveredDevices(prev => {
+      const remaining = prev.filter(d => d.id !== device.id)
+      // If no more devices, leave the room
+      if (remaining.length === 0 && currentRoomId) {
+        leaveRoom(currentRoomId)
+        setCurrentRoomId(null)
+      }
+      return remaining
+    })
+    processedPeersRef.current.delete(device.id)
+  }, [currentRoomId, leaveRoom])
 
   // File transfer hook (needs sendData from useWebRTC)
   const { handleFileMetadata, handleFileChunk, sendFile } = useFileTransfer({
@@ -615,7 +632,7 @@ function App() {
                   return (
                     <motion.div
                       key={device.id}
-                      className="bg-[var(--bg-elevated)] border-[1.5px] border-[var(--accent-primary)] rounded-xl sm:rounded-2xl px-3 py-2.5 sm:px-3.5 sm:py-3 md:px-4 md:py-3.5 text-center cursor-pointer flex flex-col items-center gap-1.5 sm:gap-2 shadow-[var(--shadow-sm)] w-[85px] sm:w-[105px] md:w-[125px] flex-shrink-0 hover:bg-[var(--accent-primary)] hover:border-[var(--accent-primary)] hover:shadow-[var(--shadow-lg)] group"
+                      className="bg-[var(--bg-elevated)] border-[1.5px] border-[var(--accent-primary)] rounded-xl sm:rounded-2xl px-3 py-2.5 sm:px-3.5 sm:py-3 md:px-4 md:py-3.5 text-center cursor-pointer flex flex-col items-center gap-1.5 sm:gap-2 shadow-[var(--shadow-sm)] w-[85px] sm:w-[105px] md:w-[125px] flex-shrink-0 hover:bg-[var(--accent-primary)] hover:border-[var(--accent-primary)] hover:shadow-[var(--shadow-lg)] group relative"
                       initial={{ opacity: 0, scale: 0 }}
                       animate={{ 
                         opacity: 1, 
@@ -651,9 +668,20 @@ function App() {
                       }}
                       whileTap={{ scale: 0.95 }}
                     >
+                      {/* Close Button */}
+                      <motion.button
+                        onClick={(e) => handleDisconnectDevice(device, e)}
+                        className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-[var(--bg-primary)] border-[1.5px] border-[var(--border-primary)] rounded-full flex items-center justify-center opacity-100 transition-opacity duration-200 hover:bg-[var(--accent-primary)] hover:border-[var(--accent-primary)] hover:text-[var(--bg-primary)] z-10 shadow-[var(--shadow-sm)] cursor-pointer"
+                        aria-label="Disconnect device"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                      >
+                        <X size={10} className="sm:w-3 sm:h-3 text-[var(--text-primary)]" />
+                      </motion.button>
+                      
                       <div className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-[var(--accent-primary)] transition-all duration-300 flex-shrink-0 group-hover:text-[var(--bg-primary)] flex items-center justify-center">
                         <DeviceIcon size={20} strokeWidth={2} className="sm:w-6 sm:h-6 md:w-7 md:h-7" />
-      </div>
+                      </div>
                       <p className="text-[0.65rem] sm:text-[0.75rem] md:text-xs font-medium text-[var(--text-primary)] transition-all duration-300 font-['Biryani'] tracking-[0.01em] break-words text-center leading-tight group-hover:text-[var(--bg-primary)] line-clamp-2">{device.name}</p>
                     </motion.div>
                   );
