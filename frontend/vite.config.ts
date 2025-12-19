@@ -13,9 +13,9 @@ export default defineConfig({
         global: true,
         process: true,
       },
-      stream: true,
     }),
   ],
+  publicDir: 'public',
   define: {
     global: 'globalThis',
   },
@@ -26,6 +26,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    host: 'localhost',
+    strictPort: false,
     proxy: {
       '/socket.io': {
         target: 'http://localhost:3000',

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F5F5F0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E8E8E0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="51.2" fill="url(#bg)"/>
+  <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="204.8" font-weight="bold" fill="#8B7355" text-anchor="middle" dominant-baseline="middle">TD</text>
+  <rect x="51.2" y="51.2" width="409.6" height="409.6" rx="40.96" fill="none" stroke="#8B7355" stroke-width="10.24"/>
+</svg>

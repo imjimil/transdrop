@@ -42,7 +42,13 @@ export function useWebRTC({
   const createPeer = useCallback((peerId: string, initiator: boolean) => {
     // Don't create duplicate peers
     if (peersRef.current.has(peerId)) {
-      return
+      const existingPeer = peersRef.current.get(peerId)
+      // If existing peer is destroyed, remove it and create a new one
+      if (existingPeer && existingPeer.destroyed) {
+        peersRef.current.delete(peerId)
+      } else {
+        return
+      }
     }
 
     try {
@@ -423,12 +429,26 @@ export function useWebRTC({
       mounted = false
       clearTimeout(timer)
       listenersRegisteredRef.current = false // Reset flag on cleanup
+      
+      // Clean up peers gracefully
+      peersRef.current.forEach((peer, peerId) => {
+        try {
+          // Only destroy if not already destroyed
+          if (!peer.destroyed) {
+            peer.destroy()
+          }
+        } catch (error) {
+          // Silently handle errors during cleanup
+        }
+        peersRef.current.delete(peerId)
+      })
+      
       if (socketInstance) {
         // Remove all event listeners before closing to prevent duplicate handlers
         socketInstance.removeAllListeners()
         socketInstance.close()
       }
-      peersRef.current.forEach(peer => peer.destroy())
+      
       peersRef.current.clear()
       notifiedPeersRef.current.clear()
       peerDeviceNamesRef.current.clear()
@@ -437,9 +457,45 @@ export function useWebRTC({
     }
   }, [roomId, createPeer])
 
-  // Join room when roomId changes
+  // Join room when roomId changes - with cleanup of old peers
   useEffect(() => {
+    if (!roomId) {
+      // Clean up all peers when leaving a room
+      peersRef.current.forEach((peer, peerId) => {
+        try {
+          if (!peer.destroyed) {
+            peer.destroy()
+          }
+        } catch (error) {
+          // Silently handle errors
+        }
+        peersRef.current.delete(peerId)
+      })
+      notifiedPeersRef.current.clear()
+      peerDeviceNamesRef.current.clear()
+      setConnectedPeers(new Set())
+      connectedPeersRef.current = new Set()
+      setPeers([])
+      return
+    }
+    
     if (socketRef.current?.connected && roomId) {
+      // Clear old peers before joining new room
+      peersRef.current.forEach((peer, peerId) => {
+        try {
+          if (!peer.destroyed) {
+            peer.destroy()
+          }
+        } catch (error) {
+          // Silently handle errors
+        }
+        peersRef.current.delete(peerId)
+      })
+      notifiedPeersRef.current.clear()
+      peerDeviceNamesRef.current.clear()
+      setConnectedPeers(new Set())
+      connectedPeersRef.current = new Set()
+      
       socketRef.current.emit('join-room', { 
         roomId, 
         deviceName: deviceName 

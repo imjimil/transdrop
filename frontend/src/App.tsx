@@ -8,9 +8,11 @@ import { PairingModal } from './components/PairingModal'
 import { MessageNotification } from './components/MessageNotification'
 import { FileProgressNotification } from './components/FileProgressNotification'
 import { TextInputModal } from './components/TextInputModal'
+import { RecentDevices } from './components/RecentDevices'
 import { getOrCreateDeviceName, setStoredDeviceName } from './utils/deviceName'
-import { playNotificationSound } from './utils/notificationSound'
+import { playNotificationSound, initializeAudioContext } from './utils/notificationSound'
 import { formatFileSize } from './utils/fileSize'
+import { savePairing, getMostRecentPairing, generatePairingRoomId } from './utils/pairingHistory'
 
 interface Device {
   id: string
@@ -42,6 +44,21 @@ function App() {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  // Initialize AudioContext on first user interaction
+  useEffect(() => {
+    const handleUserInteraction = () => {
+      initializeAudioContext()
+      // Remove listeners after first interaction
+      document.removeEventListener('click', handleUserInteraction)
+      document.removeEventListener('touchstart', handleUserInteraction)
+      document.removeEventListener('keydown', handleUserInteraction)
+    }
+    
+    document.addEventListener('click', handleUserInteraction, { once: true })
+    document.addEventListener('touchstart', handleUserInteraction, { once: true })
+    document.addEventListener('keydown', handleUserInteraction, { once: true })
+  }, [])
   
   
   // Track which peers we've processed to prevent duplicate calls
@@ -58,6 +75,11 @@ function App() {
     
     // Mark as processed immediately
     processedPeersRef.current.add(peerId)
+    
+    // Save pairing history when device connects (only if it's not our own device)
+    if (peerDeviceName && currentRoomId && peerDeviceName !== deviceName) {
+      savePairing(peerDeviceName, currentRoomId)
+    }
     
     setDiscoveredDevices(prev => {
       // Check if device already exists - this is the final guard against duplicates
@@ -78,7 +100,7 @@ function App() {
       }]
       return newDevices
     })
-  }, [deviceName])
+  }, [deviceName, currentRoomId])
 
   const handlePeerDisconnected = useCallback((peerId: string) => {
     // Remove from processed set when disconnected
@@ -123,7 +145,7 @@ function App() {
   }, [deviceName])
 
   // WebRTC connection
-  const { joinRoom, sendData } = useWebRTC({
+  const { socket, joinRoom, sendData } = useWebRTC({
     roomId: currentRoomId || undefined,
     deviceName,
     onPeerConnected: handlePeerConnected,
@@ -171,15 +193,65 @@ function App() {
     }
   }, [isDarkMode])
 
-  // Handle room joining
+  // Handle room joining with proper cleanup
   const handleRoomJoin = useCallback((roomId: string) => {
-    // Allow joining the same room (for re-pairing) or a different room
-    // Don't clear devices - we want to keep existing connections
-    if (currentRoomId !== roomId) {
-      setCurrentRoomId(roomId)
+    // If joining a different room, clear existing devices first
+    if (currentRoomId && currentRoomId !== roomId) {
+      setDiscoveredDevices([])
+      processedPeersRef.current.clear()
     }
+    setCurrentRoomId(roomId)
     joinRoom(roomId)
   }, [currentRoomId, joinRoom])
+
+  // Auto-reconnect to most recent pairing on mount (only once)
+  const hasAutoReconnectedRef = useRef(false)
+  const autoReconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const maxReconnectAttempts = 10 // Max 5 seconds of retries
+  
+  useEffect(() => {
+    // Only auto-reconnect if we haven't already and we're not in a room
+    if (hasAutoReconnectedRef.current || currentRoomId) {
+      return
+    }
+    
+    const recentPairing = getMostRecentPairing()
+    if (!recentPairing) {
+      return
+    }
+    
+    // Generate the same room ID that was used before
+    const roomId = generatePairingRoomId(deviceName, recentPairing.deviceName)
+    
+    let attempts = 0
+    
+    // Wait for socket to be ready before connecting
+    const attemptReconnect = () => {
+      attempts++
+      
+      // Check if socket is connected
+      if (socket && socket.connected) {
+        hasAutoReconnectedRef.current = true
+        setCurrentRoomId(roomId)
+        joinRoom(roomId)
+      } else if (attempts < maxReconnectAttempts) {
+        // Retry after a short delay if socket isn't ready yet
+        autoReconnectTimeoutRef.current = setTimeout(attemptReconnect, 500)
+      } else {
+        // Give up after max attempts - user can manually reconnect
+        hasAutoReconnectedRef.current = true
+      }
+    }
+    
+    // Start attempting after a short delay to let socket initialize
+    autoReconnectTimeoutRef.current = setTimeout(attemptReconnect, 500)
+    
+    return () => {
+      if (autoReconnectTimeoutRef.current) {
+        clearTimeout(autoReconnectTimeoutRef.current)
+      }
+    }
+  }, [socket, deviceName, currentRoomId, joinRoom]) // Include socket to wait for it
 
   // Don't auto-add devices from peers list - let onPeerConnected handle it with device names
 
@@ -439,6 +511,18 @@ function App() {
             )}
           </p>
         </motion.div>
+
+        {/* Recent Devices - Show when no devices are connected */}
+        {discoveredDevices.length === 0 && (
+          <div className="w-full max-w-md px-4 mb-4">
+            <RecentDevices
+              currentDeviceName={deviceName}
+              onConnect={(roomId) => {
+                handleRoomJoin(roomId)
+              }}
+            />
+          </div>
+        )}
 
         {/* Discovery Area - User in Center, Devices Around */}
         <motion.div
