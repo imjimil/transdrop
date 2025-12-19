@@ -7,7 +7,7 @@ interface UseWebRTCOptions {
   deviceName: string
   onPeerConnected?: (peerId: string, deviceName?: string) => void
   onPeerDisconnected?: (peerId: string) => void
-  onDataReceived?: (data: any) => void
+  onDataReceived?: (data: any, senderDeviceName?: string) => void
 }
 
 export function useWebRTC({
@@ -107,11 +107,102 @@ export function useWebRTC({
 
       peer.on('data', (data) => {
         try {
-          const parsed = JSON.parse(data.toString())
-          console.log(`📨 Raw data received from peer ${peerId}:`, parsed)
-          callbacksRef.current.onDataReceived?.(parsed)
+          const senderName = peerDeviceNamesRef.current.get(peerId) || 'Unknown'
+          
+          const dataLength = data instanceof ArrayBuffer ? data.byteLength : 
+                            data instanceof Uint8Array ? data.length :
+                            (typeof Buffer !== 'undefined' && Buffer.isBuffer(data)) ? data.length :
+                            typeof data === 'string' ? data.length : 'unknown'
+          
+          console.log(`📥 [RECEIVER] Data received from ${peerId}:`, {
+            dataType: typeof data,
+            isArrayBuffer: data instanceof ArrayBuffer,
+            isUint8Array: data instanceof Uint8Array,
+            isBuffer: typeof Buffer !== 'undefined' && Buffer.isBuffer(data),
+            dataLength: dataLength,
+            firstBytes: data instanceof ArrayBuffer 
+              ? Array.from(new Uint8Array(data.slice(0, Math.min(50, data.byteLength)))).join(',')
+              : data instanceof Uint8Array
+              ? Array.from(data.slice(0, Math.min(50, data.length))).join(',')
+              : data.toString().substring(0, 100)
+          })
+          
+          // Check if data is binary - simple-peer may return Buffer, Uint8Array, or ArrayBuffer
+          let arrayBuffer: ArrayBuffer | null = null
+          
+          if (data instanceof ArrayBuffer) {
+            console.log(`📥 [RECEIVER] Detected ArrayBuffer (${data.byteLength} bytes)`)
+            arrayBuffer = data
+          } else if (data instanceof Uint8Array) {
+            console.log(`📥 [RECEIVER] Detected Uint8Array (${data.length} bytes)`)
+            // Convert Uint8Array to ArrayBuffer
+            // Always create a new ArrayBuffer to avoid SharedArrayBuffer issues
+            arrayBuffer = new ArrayBuffer(data.length)
+            const view = new Uint8Array(arrayBuffer)
+            view.set(data)
+          } else if (typeof Buffer !== 'undefined' && Buffer.isBuffer(data)) {
+            console.log(`📥 [RECEIVER] Detected Buffer (${data.length} bytes)`)
+            // Convert Node.js Buffer to ArrayBuffer
+            arrayBuffer = new ArrayBuffer(data.length)
+            const view = new Uint8Array(arrayBuffer)
+            for (let i = 0; i < data.length; i++) {
+              view[i] = data[i]
+            }
+          }
+          
+          // Check if the data looks like JSON (starts with { or [)
+          // This handles the case where simple-peer sends JSON as Uint8Array/Buffer
+          let isJson = false
+          let jsonString: string | null = null
+          
+          if (arrayBuffer) {
+            // Check first byte to see if it's JSON
+            const firstByte = new Uint8Array(arrayBuffer)[0]
+            if (firstByte === 123 || firstByte === 91) { // { or [
+              // Looks like JSON - convert to string
+              const uint8Array = new Uint8Array(arrayBuffer)
+              jsonString = new TextDecoder().decode(uint8Array)
+              isJson = true
+              console.log(`📥 [RECEIVER] Uint8Array/Buffer contains JSON! Converting to string...`)
+            }
+          } else {
+            // Already a string
+            jsonString = data.toString()
+            isJson = true
+          }
+          
+          if (isJson && jsonString) {
+            // String data - parse as JSON
+            console.log(`📥 [RECEIVER] Detected JSON string (${jsonString.length} chars):`, jsonString.substring(0, 200))
+            try {
+              const parsed = JSON.parse(jsonString)
+              console.log(`📥 [RECEIVER] ✅ Successfully parsed JSON:`, parsed)
+              console.log(`📥 [RECEIVER] JSON type:`, parsed.type)
+              if (parsed.type === 'file-metadata') {
+                console.log(`📥 [RECEIVER] 🎯 THIS IS FILE METADATA!`)
+              }
+              callbacksRef.current.onDataReceived?.(parsed, senderName)
+            } catch (parseError) {
+              console.error(`❌ [RECEIVER] Failed to parse JSON from ${peerId}:`, parseError)
+              console.error(`❌ [RECEIVER] Raw data string:`, jsonString)
+            }
+          } else if (arrayBuffer) {
+            // Binary data - pass ArrayBuffer
+            console.log(`📥 [RECEIVER] Passing as binary ArrayBuffer (${arrayBuffer.byteLength} bytes)`)
+            callbacksRef.current.onDataReceived?.(arrayBuffer, senderName)
+          } else {
+            // Fallback - try to parse as string
+            const dataString = data.toString()
+            console.log(`📥 [RECEIVER] Fallback: treating as string (${dataString.length} chars):`, dataString.substring(0, 200))
+            try {
+              const parsed = JSON.parse(dataString)
+              callbacksRef.current.onDataReceived?.(parsed, senderName)
+            } catch (parseError) {
+              console.error(`❌ [RECEIVER] Failed to parse as JSON:`, parseError)
+            }
+          }
         } catch (e) {
-          console.error(`❌ Error parsing data from peer ${peerId}:`, e)
+          console.error(`❌ [RECEIVER] Error processing data from peer ${peerId}:`, e)
         }
       })
 
@@ -417,38 +508,46 @@ export function useWebRTC({
     }
   }, [])
 
-  // Send data to a peer
+  // Send data to a peer (supports both JSON objects and ArrayBuffer for binary data)
   const sendData = useCallback((peerId: string, data: any) => {
     const peer = peersRef.current.get(peerId)
     const isConnected = connectedPeersRef.current.has(peerId)
     
-    console.log(`🔍 Attempting to send data to peer ${peerId}:`, {
+    console.log(`📤 [sendData] Called for peer ${peerId}:`, {
       peerExists: !!peer,
       isConnected,
-      dataType: data.type,
-      hasPeerInMap: peersRef.current.has(peerId),
-      connectedPeers: Array.from(connectedPeersRef.current),
+      dataType: data instanceof ArrayBuffer ? 'ArrayBuffer' : typeof data,
+      dataSize: data instanceof ArrayBuffer ? data.byteLength : (typeof data === 'object' ? JSON.stringify(data).length : data.length),
+      isArrayBuffer: data instanceof ArrayBuffer
     })
     
     // Check if peer exists and is connected
     if (peer && isConnected) {
       try {
+        // If data is ArrayBuffer, send directly (for file chunks)
+        if (data instanceof ArrayBuffer) {
+          console.log(`📤 [sendData] Sending ArrayBuffer (${data.byteLength} bytes) to ${peerId}`)
+          peer.send(data)
+          return true
+        }
+        // Otherwise, stringify JSON data (for text messages and metadata)
         const dataString = JSON.stringify(data)
+        console.log(`📤 [sendData] Sending JSON string (${dataString.length} chars) to ${peerId}:`, dataString.substring(0, 200))
+        console.log(`📤 [sendData] Full JSON:`, data)
         peer.send(dataString)
-        console.log(`✅ Data sent successfully to peer ${peerId} (${data.type})`)
+        console.log(`📤 [sendData] ✅ Sent successfully to ${peerId}`)
         return true
       } catch (error) {
-        console.error(`❌ Error sending data to peer ${peerId}:`, error)
+        console.error(`❌ [sendData] Error sending data to peer ${peerId}:`, error)
         return false
       }
     }
     
+    console.warn(`⚠️ [sendData] Cannot send - peer: ${!!peer}, connected: ${isConnected}`)
+    
     // If peer exists but not connected, log the issue
     if (peer && !isConnected) {
-      console.warn(`⚠️ Peer ${peerId} exists but is not connected yet. Connection status:`, {
-        inConnectedPeers: connectedPeersRef.current.has(peerId),
-        peerState: peer.destroyed ? 'destroyed' : 'active',
-      })
+      console.warn(`⚠️ Peer ${peerId} exists but is not connected yet.`)
     } else if (!peer) {
       console.warn(`⚠️ Peer ${peerId} does not exist in peers map. Available peers:`, Array.from(peersRef.current.keys()))
     }
