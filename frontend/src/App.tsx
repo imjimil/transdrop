@@ -6,6 +6,7 @@ import { useWebRTC } from './hooks/useWebRTC'
 import { useFileTransfer } from './hooks/useFileTransfer'
 import { PairingModal } from './components/PairingModal'
 import { MessageNotification } from './components/MessageNotification'
+import { FileProgressNotification } from './components/FileProgressNotification'
 import { TextInputModal } from './components/TextInputModal'
 import { getOrCreateDeviceName, setStoredDeviceName } from './utils/deviceName'
 import { playNotificationSound } from './utils/notificationSound'
@@ -25,6 +26,7 @@ function App() {
   const [isPairingOpen, setIsPairingOpen] = useState(false)
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null)
   const [receivedMessage, setReceivedMessage] = useState<{ text?: string; from: string; variant?: 'received' | 'sent'; file?: { name: string; size: number; type: string; blob: Blob; url: string } } | null>(null)
+  const [fileProgress, setFileProgress] = useState<{ fileName: string; progress: number; variant: 'sending' | 'receiving'; to?: string; from?: string } | null>(null)
   const [textInputModal, setTextInputModal] = useState<{ isOpen: boolean; recipient: Device | null }>({ isOpen: false, recipient: null })
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === 'undefined') return false
@@ -115,7 +117,7 @@ function App() {
       if (fileTransferRef.current) {
         fileTransferRef.current.handleFileMetadata(data)
       }
-      playNotificationSound()
+      // Don't play sound here - wait until file is fully received
     }
   }, [deviceName])
 
@@ -133,6 +135,9 @@ function App() {
     deviceName,
     sendData,
     onFileReceived: (file, from) => {
+      // Clear progress
+      setFileProgress(null)
+      
       // Play notification sound for file received
       playNotificationSound()
       
@@ -142,6 +147,9 @@ function App() {
         variant: 'received',
         file
       })
+    },
+    onProgress: (fileName, progress, variant, peerName) => {
+      setFileProgress({ fileName, progress, variant, ...(variant === 'sending' ? {} : { from: peerName }) })
     }
   })
 
@@ -229,12 +237,16 @@ function App() {
 
       try {
         await sendFile(device.id, file)
+        // Clear progress
+        setFileProgress(null)
         setReceivedMessage({
           text: `File "${file.name}" sent to ${device.name}`,
           from: deviceName,
           variant: 'sent'
         })
       } catch (error) {
+        // Clear progress on error
+        setFileProgress(null)
         setReceivedMessage({
           text: error instanceof Error ? error.message : 'Failed to send file',
           from: deviceName,
@@ -600,6 +612,18 @@ function App() {
         onSubmit={handleSendText}
         recipientName={textInputModal.recipient?.name || ''}
       />
+
+      {/* File Progress Notification */}
+      <AnimatePresence>
+        {fileProgress && (
+          <FileProgressNotification
+            fileName={fileProgress.fileName}
+            progress={fileProgress.progress}
+            variant={fileProgress.variant}
+            from={fileProgress.from}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }

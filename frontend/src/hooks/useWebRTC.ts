@@ -123,24 +123,46 @@ export function useWebRTC({
             }
           }
           
-          // Check if the data looks like JSON (starts with { or [)
+          // Check if the data looks like JSON
           // This handles the case where simple-peer sends JSON as Uint8Array/Buffer
           let isJson = false
           let jsonString: string | null = null
           
           if (arrayBuffer) {
-            // Check first byte to see if it's JSON
-            const firstByte = new Uint8Array(arrayBuffer)[0]
-            if (firstByte === 123 || firstByte === 91) { // { or [
-              // Looks like JSON - convert to string
-              const uint8Array = new Uint8Array(arrayBuffer)
-              jsonString = new TextDecoder().decode(uint8Array)
-              isJson = true
+            // For binary data, check if it's actually JSON by:
+            // 1. Checking if size is reasonable for JSON (< 1MB)
+            // 2. Checking first few bytes for JSON structure
+            // 3. Attempting to decode and validate
+            const uint8Array = new Uint8Array(arrayBuffer)
+            const firstByte = uint8Array[0]
+            
+            // Only treat as JSON if it starts with { or [ AND is small enough to be JSON
+            if ((firstByte === 123 || firstByte === 91) && arrayBuffer.byteLength < 1024 * 1024) {
+              // Try to decode and validate
+              try {
+                jsonString = new TextDecoder().decode(uint8Array)
+                // Validate it's actually JSON by checking it parses
+                JSON.parse(jsonString)
+                isJson = true
+              } catch {
+                // Not valid JSON, treat as binary
+                isJson = false
+              }
             }
           } else {
-            // Already a string
-            jsonString = data.toString()
-            isJson = true
+            // Already a string - check if it's JSON
+            const dataString = data.toString()
+            const trimmed = dataString.trim()
+            if ((trimmed.startsWith('{') || trimmed.startsWith('[')) && trimmed.length < 1024 * 1024) {
+              try {
+                JSON.parse(trimmed)
+                jsonString = trimmed
+                isJson = true
+              } catch {
+                // Not valid JSON
+                isJson = false
+              }
+            }
           }
           
           if (isJson && jsonString) {
@@ -154,15 +176,6 @@ export function useWebRTC({
           } else if (arrayBuffer) {
             // Binary data - pass ArrayBuffer
             callbacksRef.current.onDataReceived?.(arrayBuffer, senderName)
-          } else {
-            // Fallback - try to parse as string
-            const dataString = data.toString()
-            try {
-              const parsed = JSON.parse(dataString)
-              callbacksRef.current.onDataReceived?.(parsed, senderName)
-            } catch (parseError) {
-              console.error(`Failed to parse as JSON:`, parseError)
-            }
           }
         } catch (e) {
           console.error(`Error processing data from peer ${peerId}:`, e)

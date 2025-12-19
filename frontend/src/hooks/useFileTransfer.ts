@@ -29,9 +29,10 @@ interface UseFileTransferOptions {
   deviceName: string
   sendData: (peerId: string, data: any) => boolean
   onFileReceived: (file: ReceivedFile, from: string) => void
+  onProgress?: (fileName: string, progress: number, variant: 'sending' | 'receiving', peerName?: string) => void
 }
 
-export function useFileTransfer({ deviceName, sendData, onFileReceived }: UseFileTransferOptions) {
+export function useFileTransfer({ deviceName, sendData, onFileReceived, onProgress }: UseFileTransferOptions) {
   // File receiving state - store ArrayBuffer chunks
   const fileChunksRef = useRef<Map<string, FileChunkData>>(new Map())
   // Buffer for chunks that arrive before metadata
@@ -78,11 +79,18 @@ export function useFileTransfer({ deviceName, sendData, onFileReceived }: UseFil
       fileData.receivedSize += chunk.byteLength
       fileData.lastChunkTime = Date.now()
       
-      // Check if all chunks received
-      const sizeDifference = Math.abs(fileData.receivedSize - fileData.metadata.fileSize)
-      const sizeTolerance = 1024 // 1KB tolerance
+      // Report progress
+      const progress = Math.min(100, (fileData.receivedSize / fileData.metadata.fileSize) * 100)
+      onProgress?.(fileData.metadata.fileName, progress, 'receiving', senderDeviceName)
+      
+      // Check if all chunks received - be strict about completion
       const allChunksReceived = fileData.chunks.length >= fileData.metadata.totalChunks
-      const sizeMatch = fileData.receivedSize >= fileData.metadata.fileSize || sizeDifference <= sizeTolerance
+      const sizeMatch = fileData.receivedSize >= fileData.metadata.fileSize
+      
+      // Only complete if we have ALL chunks AND the size matches exactly (or is slightly over due to rounding)
+      // Don't use tolerance - we need exact match to prevent corruption
+      const sizeDifference = fileData.receivedSize - fileData.metadata.fileSize
+      const sizeWithinTolerance = sizeDifference >= 0 && sizeDifference <= 1024 // Allow up to 1KB over (rounding)
       
       // Clear any existing timeout for this file
       const existingTimeout = fileTimeoutRefs.current.get(fileData.metadata.fileName)
@@ -91,7 +99,7 @@ export function useFileTransfer({ deviceName, sendData, onFileReceived }: UseFil
         fileTimeoutRefs.current.delete(fileData.metadata.fileName)
       }
       
-      if (allChunksReceived || sizeMatch) {
+      if (allChunksReceived && sizeMatch && sizeWithinTolerance) {
         try {
           // Reconstruct file from ArrayBuffer chunks
           const blob = new Blob(fileData.chunks, { type: fileData.metadata.fileType })
@@ -119,30 +127,45 @@ export function useFileTransfer({ deviceName, sendData, onFileReceived }: UseFil
           throw new Error(`Error receiving file "${fileData.metadata.fileName}": ${error}`)
         }
       } else {
-        // Set a timeout to complete the file if last chunk doesn't arrive within 2 seconds
+        // Set a longer timeout to complete the file if last chunk doesn't arrive
+        // Increased to 5 seconds for large files
         const timeout = setTimeout(() => {
           const currentFileData = fileChunksRef.current.get(fileData.metadata.fileName)
           if (currentFileData && currentFileData.chunks.length === fileData.chunks.length) {
-            // No new chunks received, complete with what we have
-            try {
-              const blob = new Blob(currentFileData.chunks, { type: currentFileData.metadata.fileType })
-              const url = URL.createObjectURL(blob)
-              
-              onFileReceived({
-                name: currentFileData.metadata.fileName,
-                size: currentFileData.metadata.fileSize,
-                type: currentFileData.metadata.fileType,
-                blob,
-                url
-              }, currentFileData.metadata.from || senderDeviceName || 'Unknown')
-              
+            // No new chunks received - check if we have enough data
+            const missingChunks = currentFileData.metadata.totalChunks - currentFileData.chunks.length
+            const missingBytes = currentFileData.metadata.fileSize - currentFileData.receivedSize
+            
+            // Only complete if we're missing less than 1% of the file (for network issues)
+            const missingPercent = (missingBytes / currentFileData.metadata.fileSize) * 100
+            if (missingPercent < 1 && missingChunks <= 2) {
+              // Close enough - complete with what we have
+              try {
+                const blob = new Blob(currentFileData.chunks, { type: currentFileData.metadata.fileType })
+                const url = URL.createObjectURL(blob)
+                
+                onFileReceived({
+                  name: currentFileData.metadata.fileName,
+                  size: currentFileData.metadata.fileSize,
+                  type: currentFileData.metadata.fileType,
+                  blob,
+                  url
+                }, currentFileData.metadata.from || senderDeviceName || 'Unknown')
+                
+                fileChunksRef.current.delete(currentFileData.metadata.fileName)
+                fileTimeoutRefs.current.delete(currentFileData.metadata.fileName)
+              } catch (error) {
+                console.error(`Error completing file after timeout:`, error)
+              }
+            } else {
+              // Too much missing - don't complete, log error
+              console.error(`File "${currentFileData.metadata.fileName}" incomplete: missing ${missingChunks} chunks (${missingBytes} bytes, ${missingPercent.toFixed(2)}%)`)
+              // Clean up
               fileChunksRef.current.delete(currentFileData.metadata.fileName)
               fileTimeoutRefs.current.delete(currentFileData.metadata.fileName)
-            } catch (error) {
-              console.error(`Error completing file after timeout:`, error)
             }
           }
-        }, 2000) // 2 second timeout
+        }, 5000) // 5 second timeout for large files
         
         fileTimeoutRefs.current.set(fileData.metadata.fileName, timeout)
       }
@@ -196,9 +219,16 @@ export function useFileTransfer({ deviceName, sendData, onFileReceived }: UseFil
               return
             }
 
+            // Report progress
+            const progress = Math.min(100, ((chunkIndex + 1) / totalChunks) * 100)
+            onProgress?.(file.name, progress, 'sending')
+
             // Small delay between chunks to avoid overwhelming the connection
             await new Promise(resolve => setTimeout(resolve, 10))
           }
+          
+          // Clear progress when done
+          onProgress?.(file.name, 100, 'sending')
 
           resolve()
         } catch (error) {
