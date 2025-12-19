@@ -12,7 +12,7 @@ interface PairingModalProps {
   connectedDevicesCount?: number
 }
 
-export function PairingModal({ isOpen, onClose, onRoomJoin, deviceName, currentRoomId, connectedDevicesCount = 0 }: PairingModalProps) {
+export function PairingModal({ isOpen, onClose, onRoomJoin, currentRoomId, connectedDevicesCount = 0 }: PairingModalProps) {
   const [myCode, setMyCode] = useState('')
   const [enteredCode, setEnteredCode] = useState('')
   const [error, setError] = useState('')
