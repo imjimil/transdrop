@@ -419,22 +419,49 @@ function App() {
             </AnimatePresence>
           </motion.button>
 
-          {/* Pair Icon */}
-          <motion.button
-            onClick={() => setIsPairingOpen(true)}
-            className="premium-btn px-4 py-2"
-            whileHover={{ y: -2 }}
-            whileTap={{ y: 0 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            title="Pair devices"
-          >
-            <Link2 size={24} />
-          </motion.button>
+          {/* Pair Icon with Tooltip */}
+          <div className="relative group">
+            <motion.button
+              onClick={() => setIsPairingOpen(true)}
+              className="premium-btn px-4 py-2"
+              whileHover={{ y: -2 }}
+              whileTap={{ y: 0 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <Link2 size={24} />
+            </motion.button>
+            {/* Tooltip */}
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-1.5 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs font-medium rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 whitespace-nowrap z-50">
+              Pair devices
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-0">
+                <div className="border-4 border-transparent border-b-[var(--text-primary)]"></div>
+              </div>
+            </div>
+          </div>
         </div>
       </motion.div>
 
       {/* Main Content - Centered */}
       <div className="flex-1 flex flex-col items-center justify-center relative">
+        {/* Instruction Text at Top */}
+        <motion.div 
+          className="text-center mb-6 px-4"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <p className="text-base sm:text-lg md:text-xl theme-text font-medium mb-2">
+            Open TransDrop on other devices to send files
+          </p>
+          <p className="text-xs sm:text-sm opacity-70 theme-text">
+            {isMobile ? (
+              <>Tap to send file • Long press to send text</>
+            ) : (
+              <>Left click to send file • Right click to send text</>
+            )}
+          </p>
+        </motion.div>
+
         {/* Discovery Area - User in Center, Devices Around */}
         <motion.div
           className="relative w-full max-w-4xl h-64 sm:h-80 md:h-96 flex items-center justify-center px-4"
