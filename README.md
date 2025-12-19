@@ -122,15 +122,7 @@ transdrop/
   backend/        Node.js + Socket.io signaling server
   frontend/       React + Vite frontend (TransDrop UI)
   README.md       This file
-  SETUP.md        Additional setup notes
-  TECHNICAL_DISCUSSION.md   Deeper technical design notes
 ```
-
-### Notes for Production
-
-- Run the signaling server behind HTTPS/WSS (for encrypted signaling).
-- Consider horizontal scaling with a shared Socket.io adapter (Redis) if you outgrow a single node.
-- Monitor memory use; the current in-memory structures are sized for active sessions only and are cleaned up on disconnect.
 
 ### License
 
