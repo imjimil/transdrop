@@ -18,31 +18,19 @@ export function generateDeviceName(): string {
   return `${adj} ${noun}`
 }
 
-// Get or create a unique tab ID (unique per browser tab/window)
-function getTabId(): string {
-  if (typeof window === 'undefined') return 'default'
-  
-  let tabId = sessionStorage.getItem('transdrop-tab-id')
-  if (!tabId) {
-    // Generate a unique ID for this tab
-    tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    sessionStorage.setItem('transdrop-tab-id', tabId)
-  }
-  return tabId
-}
-
-// Get device name for this specific tab (stored per tab)
+// Get device name for this browser (persists across sessions)
+// Using localStorage so the name persists even after browser closes
 export function getStoredDeviceName(): string | null {
   if (typeof window === 'undefined') return null
-  const tabId = getTabId()
-  return sessionStorage.getItem(`transdrop-device-name-${tabId}`)
+  // Use localStorage instead of sessionStorage so name persists across browser sessions
+  return localStorage.getItem('transdrop-device-name')
 }
 
-// Set device name for this specific tab
+// Set device name for this browser (persists across sessions)
 export function setStoredDeviceName(name: string): void {
   if (typeof window === 'undefined') return
-  const tabId = getTabId()
-  sessionStorage.setItem(`transdrop-device-name-${tabId}`, name)
+  // Use localStorage instead of sessionStorage so name persists across browser sessions
+  localStorage.setItem('transdrop-device-name', name)
 }
 
 // Get or create a unique device name for this tab

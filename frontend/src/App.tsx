@@ -12,7 +12,7 @@ import { RecentDevices } from './components/RecentDevices'
 import { getOrCreateDeviceName, setStoredDeviceName } from './utils/deviceName'
 import { playNotificationSound, initializeAudioContext } from './utils/notificationSound'
 import { formatFileSize } from './utils/fileSize'
-import { savePairing, getMostRecentPairing, generatePairingRoomId } from './utils/pairingHistory'
+import { savePairing, getMostRecentPairing, getPairingHistory, generatePairingRoomId } from './utils/pairingHistory'
 
 interface Device {
   id: string
@@ -203,6 +203,51 @@ function App() {
     setCurrentRoomId(roomId)
     joinRoom(roomId)
   }, [currentRoomId, joinRoom])
+
+  // Auto-join room when a recent device requests connection
+  useEffect(() => {
+    if (!socket) {
+      return // Wait for socket to be initialized
+    }
+
+    const handleRoomJoinRequest = (data: { roomId: string; deviceName: string }) => {
+      // Don't auto-join if already in a room (unless it's the same room)
+      if (currentRoomId && currentRoomId !== data.roomId) {
+        return
+      }
+      
+      // Don't auto-join if it's our own device
+      if (data.deviceName === deviceName) {
+        return
+      }
+      
+      // Check if the requesting device is in our recent connections
+      const recentDevices = getPairingHistory()
+      const hasRecentDevice = recentDevices.some((device: { deviceName: string }) => device.deviceName === data.deviceName)
+      
+      if (hasRecentDevice) {
+        // Generate the same room ID to verify it matches
+        const expectedRoomId = generatePairingRoomId(deviceName, data.deviceName)
+        
+        // Only auto-join if the room ID matches (ensures it's the correct pairing)
+        if (expectedRoomId === data.roomId) {
+          // Only join if we're not already in this room
+          if (currentRoomId !== data.roomId) {
+            console.log(`Auto-joining room ${data.roomId} for device ${data.deviceName}`)
+            setCurrentRoomId(data.roomId)
+            joinRoom(data.roomId)
+          }
+        }
+      }
+    }
+
+    // Set up listener immediately - Socket.io will queue events until connected
+    socket.on('room-join-request', handleRoomJoinRequest)
+
+    return () => {
+      socket.off('room-join-request', handleRoomJoinRequest)
+    }
+  }, [socket, deviceName, currentRoomId, joinRoom])
 
   // Auto-reconnect to most recent pairing on mount (only once)
   const hasAutoReconnectedRef = useRef(false)

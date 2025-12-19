@@ -209,14 +209,8 @@ export function useWebRTC({
     }
   }, [])
 
-  // Initialize Socket.io connection - only when roomId is provided
+  // Initialize Socket.io connection - always connect to listen for room-join-request
   useEffect(() => {
-    if (!roomId) {
-      // Reset listeners flag when roomId is cleared
-      listenersRegisteredRef.current = false
-      return
-    }
-    
     let mounted = true
     let socketInstance: Socket | null = null
 
@@ -255,8 +249,15 @@ export function useWebRTC({
           }
         })
 
+        // Listen for room-join-request events (for auto-reconnect from recent devices)
+        // This event is handled in App.tsx, we just need the socket connected to receive it
+        socketInstance.on('room-join-request', () => {
+          // Event is handled in App.tsx
+        })
+
         socketInstance.on('connect_error', () => {
-          // Silently handle connection errors
+          // Silently handle connection errors - socket.io will retry automatically
+          // Don't log to avoid console spam
         })
 
         socketInstance.on('disconnect', () => {
@@ -422,8 +423,11 @@ export function useWebRTC({
       }
     }
 
-    // Delay connection to not block initial render
-    const timer = setTimeout(initSocket, 200)
+    // Connect with a small delay to ensure React has finished rendering
+    // This prevents WebSocket connection errors on initial load
+    const timer = setTimeout(() => {
+      initSocket()
+    }, 100)
     
     return () => {
       mounted = false
@@ -455,7 +459,7 @@ export function useWebRTC({
       setConnectedPeers(new Set())
       connectedPeersRef.current = new Set()
     }
-  }, [roomId, createPeer])
+  }, [createPeer]) // Always connect, not just when roomId is provided
 
   // Join room when roomId changes - with cleanup of old peers
   useEffect(() => {

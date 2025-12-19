@@ -44,6 +44,16 @@ io.on('connection', (socket) => {
       deviceName: deviceInfoForPeer?.name
     })
     
+    // Broadcast to all connected sockets that this device joined a room
+    // This allows other devices to auto-join if they have this device in recent connections
+    if (deviceName) {
+      io.emit('room-join-request', {
+        roomId,
+        deviceName,
+        requestingSocketId: socket.id
+      })
+    }
+    
     // Send list of existing peers with their device names
     const peers = Array.from(rooms.get(roomId)!).filter(id => id !== socket.id)
     const peersWithInfo = peers.map(peerId => ({
