@@ -221,6 +221,30 @@ function App() {
     joinRoom(roomId)
   }, [currentRoomId, joinRoom])
 
+  // Subscribe to device notifications when socket connects or recent devices change
+  useEffect(() => {
+    if (!socket || !socket.connected) {
+      return
+    }
+
+    // Get recent devices and subscribe to notifications
+    const recentDevices = getPairingHistory()
+    const deviceNames = recentDevices
+      .map(device => device.deviceName)
+      .filter(name => name !== deviceName)
+    
+    if (deviceNames.length > 0) {
+      socket.emit('subscribe-devices', deviceNames)
+    }
+
+    return () => {
+      // Unsubscribe on cleanup
+      if (deviceNames.length > 0) {
+        socket.emit('unsubscribe-devices', deviceNames)
+      }
+    }
+  }, [socket, deviceName])
+
   // Auto-join room when a recent device requests connection
   useEffect(() => {
     if (!socket) {

@@ -233,10 +233,26 @@ export function useWebRTC({
         })
 
         socketInstance.on('connect', () => {
-          if (!mounted) return
+          if (!mounted || !socketInstance) return
           setIsConnected(true)
           setSocket(socketInstance)
           socketRef.current = socketInstance
+
+          // Subscribe to device notifications for auto-reconnect
+          // Get recent devices from localStorage and subscribe to them
+          try {
+            const { getPairingHistory } = require('../utils/pairingHistory')
+            const recentDevices = getPairingHistory()
+            const deviceNames = recentDevices
+              .map((device: { deviceName: string }) => device.deviceName)
+              .filter((name: string) => name !== deviceNameRef.current)
+            
+            if (deviceNames.length > 0 && socketInstance) {
+              socketInstance.emit('subscribe-devices', deviceNames)
+            }
+          } catch (error) {
+            // Silently handle if pairingHistory is not available
+          }
 
           // Join room if roomId is provided
           if (roomIdRef.current && socketInstance) {

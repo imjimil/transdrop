@@ -17,6 +17,9 @@ const io = new Server(httpServer, {
 const rooms = new Map<string, Set<string>>()
 // Store device info: socketId -> { name: string, roomId: string }
 const deviceInfo = new Map<string, { name: string, roomId: string }>()
+// Store which devices each socket is interested in (for auto-reconnect)
+// deviceName -> Set of socketIds that have this device in recent connections
+const deviceSubscriptions = new Map<string, Set<string>>()
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
@@ -44,14 +47,23 @@ io.on('connection', (socket) => {
       deviceName: deviceInfoForPeer?.name
     })
     
-    // Broadcast to all connected sockets that this device joined a room
-    // This allows other devices to auto-join if they have this device in recent connections
+    // Broadcast to only interested sockets (devices that have this device in recent connections)
+    // This is much more efficient than broadcasting to all 10k+ users
     if (deviceName) {
-      io.emit('room-join-request', {
-        roomId,
-        deviceName,
-        requestingSocketId: socket.id
-      })
+      const interestedSockets = deviceSubscriptions.get(deviceName)
+      if (interestedSockets && interestedSockets.size > 0) {
+        // Only send to sockets that are interested in this device
+        interestedSockets.forEach(socketId => {
+          const targetSocket = io.sockets.sockets.get(socketId)
+          if (targetSocket && targetSocket.id !== socket.id) {
+            targetSocket.emit('room-join-request', {
+              roomId,
+              deviceName,
+              requestingSocketId: socket.id
+            })
+          }
+        })
+      }
     }
     
     // Send list of existing peers with their device names
@@ -100,6 +112,29 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('peer-left', { peerId: socket.id })
   })
 
+  // Subscribe to notifications for specific devices (for auto-reconnect)
+  socket.on('subscribe-devices', (deviceNames: string[]) => {
+    deviceNames.forEach(deviceName => {
+      if (!deviceSubscriptions.has(deviceName)) {
+        deviceSubscriptions.set(deviceName, new Set())
+      }
+      deviceSubscriptions.get(deviceName)!.add(socket.id)
+    })
+  })
+
+  // Unsubscribe from device notifications
+  socket.on('unsubscribe-devices', (deviceNames: string[]) => {
+    deviceNames.forEach(deviceName => {
+      const subscribers = deviceSubscriptions.get(deviceName)
+      if (subscribers) {
+        subscribers.delete(socket.id)
+        if (subscribers.size === 0) {
+          deviceSubscriptions.delete(deviceName)
+        }
+      }
+    })
+  })
+
   // Disconnect
   socket.on('disconnect', () => {
     // Clean up rooms and device info
@@ -113,6 +148,14 @@ io.on('connection', (socket) => {
       }
     }
     deviceInfo.delete(socket.id)
+    
+    // Clean up subscriptions
+    for (const [deviceName, subscribers] of deviceSubscriptions.entries()) {
+      subscribers.delete(socket.id)
+      if (subscribers.size === 0) {
+        deviceSubscriptions.delete(deviceName)
+      }
+    }
   })
 })
 
