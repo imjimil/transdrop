@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Laptop, Smartphone, Tablet, Sun, Moon, Link2, User, Pencil } from 'lucide-react'
 import './App.css'
 import { useWebRTC } from './hooks/useWebRTC'
+import { useFileTransfer } from './hooks/useFileTransfer'
 import { PairingModal } from './components/PairingModal'
 import { MessageNotification } from './components/MessageNotification'
 import { TextInputModal } from './components/TextInputModal'
@@ -39,12 +40,6 @@ function App() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
   
-  // File receiving state - store ArrayBuffer chunks
-  const fileChunksRef = useRef<Map<string, { chunks: ArrayBuffer[], metadata: any, receivedSize: number, lastChunkTime: number }>>(new Map())
-  // Buffer for chunks that arrive before metadata
-  const pendingChunksRef = useRef<ArrayBuffer[]>([])
-  // Timeout refs for file completion fallback
-  const fileTimeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map())
   
   // Track which peers we've processed to prevent duplicate calls
   const processedPeersRef = useRef<Set<string>>(new Set())
@@ -102,154 +97,15 @@ function App() {
     })
   }, [deviceName])
 
+  // File transfer hook - initialize first to get handlers
+  const fileTransferRef = useRef<{ handleFileMetadata: (metadata: any) => void; handleFileChunk: (chunk: ArrayBuffer, sender?: string) => void; sendFile: (peerId: string, file: File) => Promise<void> } | null>(null)
+
+  // Handle data received - will use file transfer handlers
   const handleDataReceived = useCallback((data: any, senderDeviceName?: string) => {
     // Check if data is binary (ArrayBuffer) - this is a file chunk
     if (data instanceof ArrayBuffer) {
-      console.log(`📦 Received binary chunk: ${data.byteLength} bytes`)
-      
-      // Find which file this chunk belongs to - use the most recently created file entry
-      // (chunks should arrive in order after metadata)
-      let fileData: { chunks: ArrayBuffer[], metadata: any, receivedSize: number, lastChunkTime: number } | undefined
-      // Get the most recent file entry (last one added)
-      const entries = Array.from(fileChunksRef.current.entries())
-      if (entries.length > 0) {
-        // Get the last entry (most recent)
-        const [, fd] = entries[entries.length - 1]
-        if (fd.chunks.length < fd.metadata.totalChunks) {
-          fileData = fd
-        }
-      }
-      
-      if (fileData) {
-        const chunkNumber = fileData.chunks.length + 1
-        console.log(`📥 Adding chunk ${chunkNumber}/${fileData.metadata.totalChunks} for "${fileData.metadata.fileName}"`)
-        console.log(`📥 Current state: chunks=${fileData.chunks.length}, receivedSize=${fileData.receivedSize}, expectedSize=${fileData.metadata.fileSize}`)
-        
-        // Add chunk to buffer (chunks arrive in order)
-        fileData.chunks.push(data)
-        fileData.receivedSize += data.byteLength
-        
-        console.log(`📥 After adding: chunks=${fileData.chunks.length}, receivedSize=${fileData.receivedSize}`)
-        console.log(`📥 Check: chunks >= totalChunks? ${fileData.chunks.length >= fileData.metadata.totalChunks}, receivedSize >= fileSize? ${fileData.receivedSize >= fileData.metadata.fileSize}`)
-        
-        // Update last chunk time
-        fileData.lastChunkTime = Date.now()
-        
-        // Check if all chunks received
-        // Use a tolerance for file size (sometimes last chunk might be slightly off)
-        const sizeDifference = Math.abs(fileData.receivedSize - fileData.metadata.fileSize)
-        const sizeTolerance = 1024 // 1KB tolerance
-        const allChunksReceived = fileData.chunks.length >= fileData.metadata.totalChunks
-        const sizeMatch = fileData.receivedSize >= fileData.metadata.fileSize || sizeDifference <= sizeTolerance
-        
-        console.log(`📊 Completion check:`, {
-          chunksReceived: fileData.chunks.length,
-          totalChunks: fileData.metadata.totalChunks,
-          allChunksReceived,
-          receivedSize: fileData.receivedSize,
-          expectedSize: fileData.metadata.fileSize,
-          sizeDifference,
-          sizeMatch
-        })
-        
-        // Clear any existing timeout for this file
-        const existingTimeout = fileTimeoutRefs.current.get(fileData.metadata.fileName)
-        if (existingTimeout) {
-          clearTimeout(existingTimeout)
-          fileTimeoutRefs.current.delete(fileData.metadata.fileName)
-        }
-        
-        if (allChunksReceived || sizeMatch) {
-          console.log(`✅ All chunks received for "${fileData.metadata.fileName}" (${fileData.chunks.length} chunks, ${fileData.receivedSize} bytes, expected ${fileData.metadata.fileSize} bytes)`)
-          
-          try {
-            // Reconstruct file from ArrayBuffer chunks
-            console.log(`🔧 Creating Blob with ${fileData.chunks.length} chunks, type: ${fileData.metadata.fileType}`)
-            const blob = new Blob(fileData.chunks, { type: fileData.metadata.fileType })
-            console.log(`🔧 Blob created: ${blob.size} bytes, type: ${blob.type}`)
-            
-            const url = URL.createObjectURL(blob)
-            console.log(`🔧 Blob URL created: ${url}`)
-            
-            // Play notification sound for file received
-            console.log(`🔔 Playing notification sound`)
-            playNotificationSound()
-            
-            // Show MessageNotification instead of auto-downloading
-            console.log(`📬 Setting receivedMessage state with file:`, {
-              name: fileData.metadata.fileName,
-              size: fileData.metadata.fileSize,
-              type: fileData.metadata.fileType
-            })
-            
-            setReceivedMessage({
-              from: fileData.metadata.from || senderDeviceName || 'Unknown',
-              variant: 'received',
-              file: {
-                name: fileData.metadata.fileName,
-                size: fileData.metadata.fileSize,
-                type: fileData.metadata.fileType,
-                blob,
-                url
-              }
-            })
-            
-            console.log(`✅ Notification state set!`)
-            fileChunksRef.current.delete(fileData.metadata.fileName)
-            // Clear timeout if exists
-            const timeout = fileTimeoutRefs.current.get(fileData.metadata.fileName)
-            if (timeout) {
-              clearTimeout(timeout)
-              fileTimeoutRefs.current.delete(fileData.metadata.fileName)
-            }
-          } catch (error) {
-            console.error(`❌ Error creating file notification:`, error)
-            alert(`Error receiving file "${fileData.metadata.fileName}": ${error}`)
-          }
-        } else {
-          console.log(`⏳ Still waiting for more chunks: ${fileData.chunks.length}/${fileData.metadata.totalChunks} (received ${fileData.receivedSize}/${fileData.metadata.fileSize} bytes)`)
-          
-          // Set a timeout to complete the file if last chunk doesn't arrive within 2 seconds
-          // This handles cases where the last chunk might be lost or delayed
-          const timeout = setTimeout(() => {
-            const currentFileData = fileChunksRef.current.get(fileData.metadata.fileName)
-            if (currentFileData && currentFileData.chunks.length === fileData.chunks.length) {
-              // No new chunks received, complete with what we have
-              const remainingBytes = fileData.metadata.fileSize - currentFileData.receivedSize
-              console.warn(`⚠️ Timeout: Last chunk not received for "${fileData.metadata.fileName}". Completing with ${currentFileData.chunks.length}/${fileData.metadata.totalChunks} chunks (missing ~${remainingBytes} bytes)`)
-              
-              try {
-                const blob = new Blob(currentFileData.chunks, { type: currentFileData.metadata.fileType })
-                const url = URL.createObjectURL(blob)
-                
-                playNotificationSound()
-                
-                setReceivedMessage({
-                  from: currentFileData.metadata.from || senderDeviceName || 'Unknown',
-                  variant: 'received',
-                  file: {
-                    name: currentFileData.metadata.fileName,
-                    size: currentFileData.metadata.fileSize,
-                    type: currentFileData.metadata.fileType,
-                    blob,
-                    url
-                  }
-                })
-                
-                fileChunksRef.current.delete(currentFileData.metadata.fileName)
-                fileTimeoutRefs.current.delete(currentFileData.metadata.fileName)
-              } catch (error) {
-                console.error(`❌ Error completing file after timeout:`, error)
-              }
-            }
-          }, 2000) // 2 second timeout
-          
-          fileTimeoutRefs.current.set(fileData.metadata.fileName, timeout)
-        }
-      } else {
-        // No metadata yet - buffer the chunk
-        console.warn(`⚠️ Received binary chunk but no matching file metadata found. Buffering chunk.`)
-        pendingChunksRef.current.push(data)
+      if (fileTransferRef.current) {
+        fileTransferRef.current.handleFileChunk(data, senderDeviceName)
       }
       return
     }
@@ -271,26 +127,9 @@ function App() {
     } 
     // Handle file metadata
     else if (data.type === 'file-metadata') {
-      console.log(`📋 ✅ RECEIVED FILE METADATA for "${data.fileName}" (${data.totalChunks} chunks, ${data.fileSize} bytes)`)
-      
-      // Create file entry
-      const fileEntry = {
-        chunks: [] as ArrayBuffer[],
-        metadata: data,
-        receivedSize: 0,
-        lastChunkTime: Date.now(),
+      if (fileTransferRef.current) {
+        fileTransferRef.current.handleFileMetadata(data)
       }
-      
-      // Add any pending chunks that arrived before metadata
-      if (pendingChunksRef.current.length > 0) {
-        console.log(`📦 Adding ${pendingChunksRef.current.length} pending chunks to "${data.fileName}"`)
-        fileEntry.chunks.push(...pendingChunksRef.current)
-        fileEntry.receivedSize = pendingChunksRef.current.reduce((sum, chunk) => sum + chunk.byteLength, 0)
-        pendingChunksRef.current = []
-      }
-      
-      fileChunksRef.current.set(data.fileName, fileEntry)
-      console.log(`📋 File entry created for "${data.fileName}". Current chunks: ${fileEntry.chunks.length}/${data.totalChunks}`)
       playNotificationSound()
     } else {
       console.warn(`⚠️ Unknown JSON data type:`, data.type, data)
@@ -320,6 +159,28 @@ function App() {
     onPeerDisconnected: handlePeerDisconnected,
     onDataReceived: handleDataReceived,
   })
+
+  // File transfer hook (needs sendData from useWebRTC)
+  const { handleFileMetadata, handleFileChunk, sendFile } = useFileTransfer({
+    deviceName,
+    sendData,
+    onFileReceived: (file, from) => {
+      // Play notification sound for file received
+      playNotificationSound()
+      
+      // Show MessageNotification
+      setReceivedMessage({
+        from,
+        variant: 'received',
+        file
+      })
+    }
+  })
+
+  // Store file transfer handlers in ref for use in handleDataReceived
+  useEffect(() => {
+    fileTransferRef.current = { handleFileMetadata, handleFileChunk, sendFile }
+  }, [handleFileMetadata, handleFileChunk, sendFile])
 
   // Don't auto-close modal - let PairingModal handle it when actively connecting
   
@@ -397,71 +258,16 @@ function App() {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
 
-      
-      // Read file as ArrayBuffer
-      const reader = new FileReader()
-      reader.onload = async (event) => {
-        const arrayBuffer = event.target?.result as ArrayBuffer
-        const CHUNK_SIZE = 16 * 1024 // 16KB chunks (WebRTC message size limit)
-        const totalChunks = Math.ceil(arrayBuffer.byteLength / CHUNK_SIZE)
-
-        // Send file metadata first
-        const metadata = {
-          type: 'file-metadata',
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-          totalChunks,
-          from: deviceName,
-          timestamp: Date.now(),
-        }
-
-        console.log(`📤 ===== SENDING FILE METADATA =====`)
-        console.log(`📤 File: "${file.name}"`)
-        console.log(`📤 Size: ${file.size} bytes`)
-        console.log(`📤 Type: ${file.type}`)
-        console.log(`📤 Total Chunks: ${totalChunks}`)
-        console.log(`📤 From: ${deviceName}`)
-        console.log(`📤 Metadata object:`, metadata)
-        console.log(`📤 Metadata JSON string:`, JSON.stringify(metadata))
-        console.log(`📤 Sending to peer: ${device.id}`)
-        
-        const metadataSent = sendData(device.id, metadata)
-        console.log(`📤 Send result: ${metadataSent ? '✅ SUCCESS' : '❌ FAILED'}`)
-        
-        if (!metadataSent) {
-          alert('Failed to send file metadata. Please check connection.')
-          return
-        }
-
-        // Wait a bit to ensure metadata arrives before chunks
-        await new Promise(resolve => setTimeout(resolve, 100))
-
-        // Send file in chunks as ArrayBuffer (binary)
-        console.log(`📤 Starting to send ${totalChunks} chunks for "${file.name}"`)
-        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-          const start = chunkIndex * CHUNK_SIZE
-          const end = Math.min(start + CHUNK_SIZE, arrayBuffer.byteLength)
-          const chunk = arrayBuffer.slice(start, end)
-
-          // Send ArrayBuffer directly (binary)
-          if (!sendData(device.id, chunk)) {
-            alert(`Failed to send chunk ${chunkIndex + 1}/${totalChunks}`)
-            return
-          }
-
-          // Small delay between chunks to avoid overwhelming the connection
-          await new Promise(resolve => setTimeout(resolve, 10))
-        }
-
+      try {
+        await sendFile(device.id, file)
         alert(`File "${file.name}" sent to ${device.name}`)
+      } catch (error) {
+        alert(error instanceof Error ? error.message : 'Failed to send file')
       }
-
-      reader.readAsArrayBuffer(file)
     }
 
     input.click()
-  }, [sendData, deviceName])
+  }, [sendFile])
 
   // Handle device click - left click = send file, right click = send text (desktop)
   // On mobile: tap = send file, long press = send text
