@@ -24,6 +24,7 @@ export function useWebRTC({
   const peersRef = useRef<Map<string, Peer.Instance>>(new Map())
   const connectedPeersRef = useRef<Set<string>>(new Set())
   const notifiedPeersRef = useRef<Set<string>>(new Set()) // Track peers we've already notified about
+  const peerDeviceNamesRef = useRef<Map<string, string>>(new Map()) // Store device names for peers
   const socketRef = useRef<Socket | null>(null)
   const listenersRegisteredRef = useRef(false) // Track if socket listeners have been registered
   const callbacksRef = useRef({ onPeerConnected, onPeerDisconnected, onDataReceived })
@@ -93,8 +94,15 @@ export function useWebRTC({
           connectedPeersRef.current = next
           return next
         })
-        // Don't call onPeerConnected here - it's already called when we receive peer info from server
-        // This prevents duplicate device entries
+        // Notify about peer connection if we haven't already
+        // This ensures devices show up even if socket events didn't fire properly
+        if (!notifiedPeersRef.current.has(peerId)) {
+          console.log(`📢 Notifying about peer ${peerId} from WebRTC connect event`)
+          notifiedPeersRef.current.add(peerId)
+          // Get device name from stored peer info if available
+          const storedDeviceName = peerDeviceNamesRef.current.get(peerId)
+          callbacksRef.current.onPeerConnected?.(peerId, storedDeviceName)
+        }
       })
 
       peer.on('data', (data) => {
@@ -121,6 +129,7 @@ export function useWebRTC({
           })
           peersRef.current.delete(peerId)
           notifiedPeersRef.current.delete(peerId) // Remove from notified set when peer disconnects
+          peerDeviceNamesRef.current.delete(peerId) // Remove device name when peer disconnects
           callbacksRef.current.onPeerDisconnected?.(peerId)
       })
     } catch (error) {
@@ -209,11 +218,20 @@ export function useWebRTC({
                 console.log(`ℹ️ Peer ${peerId} already exists in map`)
               }
               
+              // Store device name for later use
+              if (deviceName) {
+                peerDeviceNamesRef.current.set(peerId, deviceName)
+              }
+              
               // Notify with device name - STRICT: check and add atomically, then notify synchronously
               if (deviceName && !notifiedPeersRef.current.has(peerId)) {
                 notifiedPeersRef.current.add(peerId)
                 // Call immediately - the callback itself has duplicate protection
                 callbacksRef.current.onPeerConnected?.(peerId, deviceName)
+              } else if (!deviceName && !notifiedPeersRef.current.has(peerId)) {
+                // Even without device name, notify about the peer so it shows up
+                notifiedPeersRef.current.add(peerId)
+                callbacksRef.current.onPeerConnected?.(peerId)
               }
             })
           } else {
@@ -250,14 +268,21 @@ export function useWebRTC({
             console.log(`ℹ️ Peer ${peerId} already exists in map`)
           }
           
-          // Notify with device name if provided - only if we haven't notified about this peer yet
+          // Store device name for later use
           if (deviceName) {
+            peerDeviceNamesRef.current.set(peerId, deviceName)
+          }
+          
+          // Notify with device name if provided - only if we haven't notified about this peer yet
+          if (deviceName && !notifiedPeersRef.current.has(peerId)) {
             // Check and add atomically
-            if (!notifiedPeersRef.current.has(peerId)) {
-              notifiedPeersRef.current.add(peerId)
-              // Call immediately - the callback itself has duplicate protection
-              callbacksRef.current.onPeerConnected?.(peerId, deviceName)
-            }
+            notifiedPeersRef.current.add(peerId)
+            // Call immediately - the callback itself has duplicate protection
+            callbacksRef.current.onPeerConnected?.(peerId, deviceName)
+          } else if (!deviceName && !notifiedPeersRef.current.has(peerId)) {
+            // Even without device name, notify about the peer so it shows up
+            notifiedPeersRef.current.add(peerId)
+            callbacksRef.current.onPeerConnected?.(peerId)
           }
         })
 
@@ -282,12 +307,22 @@ export function useWebRTC({
         })
 
         // Handle WebRTC offer
-        socketInstance.on('offer', async ({ offer, from }: { offer: RTCSessionDescriptionInit; from: string }) => {
+        socketInstance.on('offer', async ({ offer, from, deviceName: peerDeviceName }: { offer: RTCSessionDescriptionInit; from: string; deviceName?: string }) => {
           if (!mounted) return
           const peer = peersRef.current.get(from)
           if (peer) {
             try {
               await peer.signal(offer)
+              // Store device name for later use
+              if (peerDeviceName) {
+                peerDeviceNamesRef.current.set(from, peerDeviceName)
+              }
+              // If we receive an offer, it means a new peer is trying to connect,
+              // so we should also notify about them if we haven't already
+              if (peerDeviceName && !notifiedPeersRef.current.has(from)) {
+                notifiedPeersRef.current.add(from)
+                callbacksRef.current.onPeerConnected?.(from, peerDeviceName)
+              }
             } catch (error) {
               // Silently handle signaling errors
             }
@@ -342,6 +377,7 @@ export function useWebRTC({
       peersRef.current.forEach(peer => peer.destroy())
       peersRef.current.clear()
       notifiedPeersRef.current.clear()
+      peerDeviceNamesRef.current.clear()
       setConnectedPeers(new Set())
       connectedPeersRef.current = new Set()
     }

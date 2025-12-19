@@ -75,11 +75,13 @@ function App() {
       }
       // Add new device - this should only happen once per peer
       console.log(`✓ Connected: ${deviceName} ↔ ${deviceNameToShow}`)
-      return [...prev, {
+      const newDevices: Device[] = [...prev, {
         id: peerId,
         name: deviceNameToShow,
-        type: 'laptop'
+        type: 'laptop' as const
       }]
+      console.log(`[App] Device count updated: ${prev.length} → ${newDevices.length}`)
+      return newDevices
     })
   }, [deviceName])
 
@@ -162,12 +164,7 @@ function App() {
     onDataReceived: handleDataReceived,
   })
 
-  // Close pairing modal when peer connects
-  useEffect(() => {
-    if (discoveredDevices.length > 0 && isPairingOpen) {
-      setIsPairingOpen(false)
-    }
-  }, [discoveredDevices.length, isPairingOpen])
+  // Don't auto-close modal - let PairingModal handle it when actively connecting
   
 
   // Toggle dark mode
@@ -181,11 +178,11 @@ function App() {
 
   // Handle room joining
   const handleRoomJoin = useCallback((roomId: string) => {
-    if (currentRoomId === roomId) {
-      return
+    // Allow joining the same room (for re-pairing) or a different room
+    // Don't clear devices - we want to keep existing connections
+    if (currentRoomId !== roomId) {
+      setCurrentRoomId(roomId)
     }
-    setCurrentRoomId(roomId)
-    setDiscoveredDevices([]) // Clear devices when joining a new room
     joinRoom(roomId)
   }, [currentRoomId, joinRoom])
 
@@ -619,6 +616,8 @@ function App() {
         onClose={() => setIsPairingOpen(false)}
         onRoomJoin={handleRoomJoin}
         deviceName={deviceName}
+        currentRoomId={currentRoomId}
+        connectedDevicesCount={discoveredDevices.length}
       />
 
       {/* Message Notification - Only for received messages */}

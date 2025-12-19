@@ -59,10 +59,11 @@ io.on('connection', (socket) => {
   })
 
   // WebRTC signaling: offer
-  socket.on('offer', (data: { offer: RTCSessionDescriptionInit, target: string, roomId: string }) => {
+  socket.on('offer', (data: { offer: RTCSessionDescriptionInit, target: string, roomId: string, deviceName?: string }) => {
     socket.to(data.target).emit('offer', {
       offer: data.offer,
-      from: socket.id
+      from: socket.id,
+      deviceName: data.deviceName || deviceInfo.get(socket.id)?.name
     })
   })
 

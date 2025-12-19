@@ -8,40 +8,113 @@ interface PairingModalProps {
   onClose: () => void
   onRoomJoin: (roomId: string) => void
   deviceName: string
+  currentRoomId?: string | null
+  connectedDevicesCount?: number
 }
 
-export function PairingModal({ isOpen, onClose, onRoomJoin, deviceName }: PairingModalProps) {
+export function PairingModal({ isOpen, onClose, onRoomJoin, deviceName, currentRoomId, connectedDevicesCount = 0 }: PairingModalProps) {
   const [myCode, setMyCode] = useState('')
   const [enteredCode, setEnteredCode] = useState('')
   const [error, setError] = useState('')
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [connectionSuccess, setConnectionSuccess] = useState(false)
+  const [baselineDeviceCount, setBaselineDeviceCount] = useState(0)
   const hasJoinedRef = useRef(false)
   const onRoomJoinRef = useRef(onRoomJoin)
+  const wasOpenRef = useRef(false) // Track if modal was previously open
 
   // Update ref when callback changes
   useEffect(() => {
     onRoomJoinRef.current = onRoomJoin
   }, [onRoomJoin])
 
+  // Track connection success - close modal when a new device connects
+  useEffect(() => {
+    // Debug logging - always log to see what's happening
+    console.log(`[PairingModal] Effect running: connectedDevicesCount=${connectedDevicesCount}, baselineDeviceCount=${baselineDeviceCount}, isConnecting=${isConnecting}`)
+    
+    // If we're actively connecting (user entered a code), check against baseline
+    if (isConnecting) {
+      // Only trigger success if device count increased while connecting
+      const hasNewConnection = connectedDevicesCount > baselineDeviceCount
+      console.log(`[PairingModal] Connection check (active): hasNewConnection=${hasNewConnection} (${baselineDeviceCount} → ${connectedDevicesCount})`)
+      
+      if (hasNewConnection) {
+        console.log(`[PairingModal] ✅ Connection detected! Count: ${baselineDeviceCount} → ${connectedDevicesCount}. Closing modal...`)
+        setConnectionSuccess(true)
+        setIsConnecting(false)
+        setTimeout(() => {
+          onClose()
+          setConnectionSuccess(false)
+          setEnteredCode('')
+        }, 1500)
+        return
+      }
+    } else {
+      // If not actively connecting, but modal is open and a device connects,
+      // close the modal (this handles the receiving side)
+      // Only close if we have at least one device connected
+      if (connectedDevicesCount > 0 && baselineDeviceCount === 0) {
+        // This means a device connected while modal was open (receiving side)
+        console.log(`[PairingModal] ✅ Device connected on receiving side! Closing modal...`)
+        setConnectionSuccess(true)
+        setTimeout(() => {
+          onClose()
+          setConnectionSuccess(false)
+          setEnteredCode('')
+        }, 1500)
+        return
+      }
+    }
+    
+    console.log(`[PairingModal] ⏳ Waiting for connection... (count: ${connectedDevicesCount}, baseline: ${baselineDeviceCount})`)
+  }, [connectedDevicesCount, isConnecting, baselineDeviceCount, onClose])
+
+  // Initialize room code only once when modal first opens
   useEffect(() => {
     if (isOpen) {
-      // Generate code when modal opens
-      if (!myCode) {
-        const code = generateRoomCode()
-        setMyCode(code)
+      // Only reset states when modal FIRST opens (wasn't open before)
+      // This prevents resetting isConnecting if we're already in the middle of connecting
+      if (!wasOpenRef.current) {
+        setConnectionSuccess(false)
+        setError('')
+        // Set baseline to current count when modal opens (for receiving side detection)
+        setBaselineDeviceCount(connectedDevicesCount)
+        // Don't reset isConnecting here - let it stay as is
       }
-      // Join with own code when generated
-      if (myCode && !hasJoinedRef.current) {
-        hasJoinedRef.current = true
-        onRoomJoinRef.current(myCode)
+      wasOpenRef.current = true
+      
+      // Only generate/set myCode if we don't have one yet
+      if (!myCode) {
+        // If we have a current room ID, use it; otherwise generate a new one
+        if (currentRoomId) {
+          setMyCode(currentRoomId)
+          // Re-join the room if we're reopening the modal
+          if (!hasJoinedRef.current) {
+            hasJoinedRef.current = true
+            onRoomJoinRef.current(currentRoomId)
+          }
+        } else {
+          // Generate new code only if we don't have one
+          const code = generateRoomCode()
+          setMyCode(code)
+          // Join with own code when first generated
+          if (!hasJoinedRef.current) {
+            hasJoinedRef.current = true
+            onRoomJoinRef.current(code)
+          }
+        }
       }
     } else {
       // Reset when modal closes
+      wasOpenRef.current = false
       setEnteredCode('')
       setError('')
-      setMyCode('')
-      hasJoinedRef.current = false
+      setIsConnecting(false)
+      setConnectionSuccess(false)
+      // Keep myCode and hasJoinedRef so we can reuse the same room
     }
-  }, [isOpen, myCode])
+  }, [isOpen, currentRoomId, myCode]) // Remove isConnecting from deps to prevent resetting it
 
   const handleJoinRoom = (codeToJoin?: string) => {
     const code = (codeToJoin || enteredCode).trim()
@@ -61,8 +134,20 @@ export function PairingModal({ isOpen, onClose, onRoomJoin, deviceName }: Pairin
       return
     }
 
-    // Clear error and join - don't clear enteredCode yet, let it stay visible
+    // Don't join if it's our own code (we're already in that room)
+    if (code === myCode) {
+      setError('This is your own code. Enter a different device\'s code.')
+      return
+    }
+
+    // Clear error and set connecting state
     setError('')
+    setConnectionSuccess(false)
+    // Set baseline count BEFORE setting isConnecting to true
+    // This ensures we only detect NEW connections that happen after this point
+    console.log(`[PairingModal] Starting connection: current device count = ${connectedDevicesCount}`)
+    setBaselineDeviceCount(connectedDevicesCount)
+    setIsConnecting(true)
     onRoomJoin(code)
     // Don't clear enteredCode immediately - let user see what they entered
   }
@@ -137,25 +222,47 @@ export function PairingModal({ isOpen, onClose, onRoomJoin, deviceName }: Pairin
               </div>
             </div>
 
-            {error && (
-              <motion.p
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-sm text-red-500 text-center"
+            {connectionSuccess ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center py-4"
               >
-                {error}
-              </motion.p>
-            )}
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                  className="text-4xl mb-2"
+                >
+                  ✓
+                </motion.div>
+                <p className="text-lg font-semibold text-[var(--accent-primary)] font-['Biryani']">
+                  Connected!
+                </p>
+              </motion.div>
+            ) : (
+              <>
+                {error && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-sm text-red-500 text-center"
+                  >
+                    {error}
+                  </motion.p>
+                )}
 
-            <motion.button
-              onClick={() => handleJoinRoom()}
-              className="bg-[var(--accent-primary)] border-[1.5px] border-[var(--accent-primary)] rounded-xl px-7 py-3.5 text-[var(--bg-primary)] font-medium text-[0.9375rem] font-['Biryani'] transition-all duration-300 cursor-pointer w-full shadow-[var(--shadow-sm)] hover:bg-[var(--accent-dark)] hover:border-[var(--accent-dark)] hover:shadow-[var(--shadow-md)] active:shadow-[var(--shadow-sm)] disabled:opacity-50 disabled:cursor-not-allowed w-full"
-              whileHover={{ y: -2 }}
-              whileTap={{ y: 0 }}
-              disabled={!enteredCode || enteredCode.length !== 6}
-            >
-              <span>Connect</span>
-            </motion.button>
+                {isConnecting && (
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-sm text-[var(--accent-primary)] text-center font-['Biryani']"
+                  >
+                    Connecting...
+                  </motion.p>
+                )}
+              </>
+            )}
           </div>
         </motion.div>
       </motion.div>
