@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect, useRef } from 'react'
+import { Check } from 'lucide-react'
 
 interface TextInputModalProps {
   isOpen: boolean
@@ -102,9 +103,9 @@ export function TextInputModal({ isOpen, onClose, onSubmit, recipientName }: Tex
                     stiffness: 200,
                     damping: 15
                   }}
-                  className="text-4xl mb-4"
+                  className="mb-4"
                 >
-                  ✓
+                  <Check size={48} className="text-[var(--accent-primary)]" strokeWidth={3} />
                 </motion.div>
                 <p 
                   className="text-xl font-semibold theme-text"

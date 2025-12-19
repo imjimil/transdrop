@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
+import { X, Copy, Check, Clipboard } from 'lucide-react'
 
 interface MessageNotificationProps {
   message: string
@@ -90,9 +91,7 @@ export function MessageNotification({ message, from, onClose, variant = 'receive
               className="opacity-60 hover:opacity-100 transition-opacity flex-shrink-0"
               aria-label="Close"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <X size={20} />
             </button>
           </div>
 
@@ -114,12 +113,12 @@ export function MessageNotification({ message, from, onClose, variant = 'receive
             >
               {copied ? (
                 <>
-                  <span className="text-lg">✓</span>
+                  <Check size={18} />
                   <span>Copied!</span>
                 </>
               ) : (
                 <>
-                  <span className="text-lg">📋</span>
+                  <Clipboard size={18} />
                   <span>Copy</span>
                 </>
               )}
