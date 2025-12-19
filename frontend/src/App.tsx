@@ -25,16 +25,14 @@ function App() {
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null)
   const [receivedMessage, setReceivedMessage] = useState<{ text: string; from: string; variant?: 'received' | 'sent' } | null>(null)
   const [textInputModal, setTextInputModal] = useState<{ isOpen: boolean; recipient: Device | null }>({ isOpen: false, recipient: null })
-  const [windowWidth, setWindowWidth] = useState(() => typeof window !== 'undefined' ? window.innerWidth : 1024)
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === 'undefined') return false
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768
   })
 
-  // Track window width for responsive device positioning
+  // Track window size for mobile detection
   useEffect(() => {
     const handleResize = () => {
-      setWindowWidth(window.innerWidth)
       setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768)
     }
     window.addEventListener('resize', handleResize)
@@ -378,17 +376,17 @@ function App() {
         transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
       >
         <motion.h1
-          className="text-4xl md:text-5xl premium-title"
+          className="text-4xl md:text-5xl text-[var(--text-primary)] font-normal font-['Bebas_Neue'] tracking-[0.05em] transition-all duration-300 uppercase drop-shadow-[0_2px_8px_rgba(11,46,51,0.1)]"
           whileHover={{ scale: 1.01 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         >
-          Trans<span className="premium-title-accent">Drop</span>
+          Trans<span className="text-[var(--accent-primary)] transition-all duration-300 inline-block">Drop</span>
         </motion.h1>
         
         <div className="flex items-center gap-4">
           <motion.button
             onClick={() => setIsDarkMode(!isDarkMode)}
-            className="theme-toggle"
+            className="bg-[var(--bg-secondary)] border-[1.5px] border-[var(--border-primary)] rounded-xl p-2.5 text-[var(--text-primary)] cursor-pointer transition-all duration-300 flex items-center justify-center hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] hover:shadow-[var(--shadow-md)] active:shadow-[var(--shadow-sm)]"
             aria-label="Toggle dark mode"
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
@@ -423,7 +421,7 @@ function App() {
           <div className="relative group">
             <motion.button
               onClick={() => setIsPairingOpen(true)}
-              className="premium-btn px-4 py-2"
+              className="bg-[var(--bg-elevated)] border-[1.5px] border-[var(--text-primary)] rounded-xl px-4 py-2 text-[var(--text-primary)] font-medium text-[0.9375rem] font-['Biryani'] transition-all duration-300 cursor-pointer shadow-[var(--shadow-sm)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-primary)] hover:text-[var(--bg-primary)] hover:shadow-[var(--shadow-md)] active:shadow-[var(--shadow-sm)]"
               whileHover={{ y: -2 }}
               whileTap={{ y: 0 }}
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
@@ -450,10 +448,10 @@ function App() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
         >
-          <p className="text-base sm:text-lg md:text-xl theme-text font-medium mb-2">
+          <p className="text-base sm:text-lg md:text-xl text-[var(--text-primary)] font-['Biryani'] font-medium mb-2">
             Open TransDrop on other devices to send files
           </p>
-          <p className="text-xs sm:text-sm opacity-70 theme-text">
+          <p className="text-xs sm:text-sm opacity-70 text-[var(--text-primary)] font-['Biryani']">
             {isMobile ? (
               <>Tap to send file • Long press to send text</>
             ) : (
@@ -464,14 +462,14 @@ function App() {
 
         {/* Discovery Area - User in Center, Devices Around */}
         <motion.div
-          className="relative w-full max-w-4xl h-64 sm:h-80 md:h-96 flex items-center justify-center px-4"
+          className="relative w-full max-w-4xl h-64 sm:h-80 md:h-96 flex flex-col items-center justify-center px-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.3 }}
         >
           {/* User Icon in Center with Concentric Circles */}
           <motion.div
-            className="absolute z-10"
+            className="relative z-10 mb-8 sm:mb-10 md:mb-12"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
@@ -486,22 +484,21 @@ function App() {
               <div className="circle-ring circle-ring-6"></div>
             </div>
             
-            <div className="user-icon-container relative z-10">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 flex items-center justify-center text-[var(--accent-primary)] bg-[var(--bg-elevated)] border-2 border-[var(--accent-primary)] rounded-full p-1.5 sm:p-1.75 md:p-2 shadow-[var(--shadow-md)] relative z-10">
               <User size={32} strokeWidth={2} />
             </div>
           </motion.div>
 
-          {/* Devices Around User Icon - Circular Layout */}
+          {/* Devices Below User Icon - Clean Row Formation */}
           <AnimatePresence>
             {discoveredDevices.length > 0 ? (
-              <>
+              <motion.div
+                className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 md:gap-5 w-full max-w-[400px] sm:max-w-[500px] md:max-w-[600px]"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.5 }}
+              >
                 {discoveredDevices.map((device, index) => {
-                  const angle = (index * 360) / discoveredDevices.length;
-                  // Responsive radius: smaller on mobile, larger on desktop
-                  const radius = windowWidth < 640 ? 100 : windowWidth < 768 ? 140 : 180;
-                  const x = Math.cos((angle * Math.PI) / 180) * radius;
-                  const y = Math.sin((angle * Math.PI) / 180) * radius;
-                  
                   // Get appropriate icon component
                   const DeviceIcon = device.type === 'phone' ? Smartphone : 
                                    device.type === 'tablet' ? Tablet : Laptop;
@@ -509,18 +506,16 @@ function App() {
                   return (
                     <motion.div
                       key={device.id}
-                      className="absolute device-bubble cursor-pointer z-20"
-                      style={{
-                        left: `calc(50% + ${x}px)`,
-                        top: `calc(50% + ${y}px)`,
-                        transform: 'translate(-50%, -50%)',
+                      className="bg-[var(--bg-elevated)] border-[1.5px] border-[var(--accent-primary)] rounded-xl sm:rounded-2xl px-3 py-2.5 sm:px-3.5 sm:py-3 md:px-4 md:py-3.5 text-center cursor-pointer flex flex-col items-center gap-1.5 sm:gap-2 shadow-[var(--shadow-sm)] w-[85px] sm:w-[105px] md:w-[125px] flex-shrink-0 hover:bg-[var(--accent-primary)] hover:border-[var(--accent-primary)] hover:shadow-[var(--shadow-lg)] group"
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{ 
+                        opacity: 1, 
+                        scale: 1
                       }}
-                      initial={{ opacity: 0, scale: 0, x: 0, y: 0 }}
-                      animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
                       exit={{ opacity: 0, scale: 0 }}
                       transition={{ 
-                        delay: index * 0.1,
-                        duration: 0.6,
+                        delay: index * 0.08,
+                        duration: 0.5,
                         ease: [0.16, 1, 0.3, 1]
                       }}
                       onClick={(e) => {
@@ -542,19 +537,19 @@ function App() {
                       onTouchEnd={() => handleTouchEnd(device)}
                       onTouchCancel={() => handleTouchCancel(device)}
                       whileHover={{ 
-                        scale: 1.1,
-                        transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] }
+                        scale: 1.05,
+                        transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] }
                       }}
                       whileTap={{ scale: 0.95 }}
                     >
-                      <div className="device-icon">
-                        <DeviceIcon size={24} strokeWidth={2} />
-                      </div>
-                      <p className="device-name">{device.name}</p>
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-[var(--accent-primary)] transition-all duration-300 flex-shrink-0 group-hover:text-[var(--bg-primary)] flex items-center justify-center">
+                        <DeviceIcon size={20} strokeWidth={2} className="sm:w-6 sm:h-6 md:w-7 md:h-7" />
+      </div>
+                      <p className="text-[0.65rem] sm:text-[0.75rem] md:text-xs font-medium text-[var(--text-primary)] transition-all duration-300 font-['Biryani'] tracking-[0.01em] break-words text-center leading-tight group-hover:text-[var(--bg-primary)] line-clamp-2">{device.name}</p>
                     </motion.div>
                   );
                 })}
-              </>
+              </motion.div>
             ) : (
               <motion.div
                 key="instructions"
@@ -569,10 +564,10 @@ function App() {
                 }}
               >
                 <div className="text-center">
-                  <p className="text-base sm:text-lg md:text-xl theme-text font-medium mb-2">
+                  <p className="text-base sm:text-lg md:text-xl text-[var(--text-primary)] font-['Biryani'] font-medium mb-2">
                     Open TransDrop on other devices to send files
                   </p>
-                  <p className="text-xs sm:text-sm opacity-70 theme-text">
+                  <p className="text-xs sm:text-sm opacity-70 text-[var(--text-primary)] font-['Biryani']">
                     Pair devices or enter a code to be discoverable
                   </p>
                 </div>
@@ -590,9 +585,9 @@ function App() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.8, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
       >
-        <p className="text-sm opacity-80 theme-text">You are known as:</p>
+        <p className="text-sm opacity-80 text-[var(--text-primary)] font-['Biryani']">You are known as:</p>
         <motion.div 
-          className="device-badge"
+          className="bg-[var(--bg-elevated)] border-[1.5px] border-[var(--border-primary)] rounded-[0.625rem] px-3 py-2 inline-flex items-center gap-2 text-xs font-['Biryani'] text-[var(--text-primary)] transition-all duration-300 shadow-[var(--shadow-sm)] cursor-pointer hover:border-[var(--accent-primary)] hover:shadow-[var(--shadow-md)]"
           whileHover={{ y: -1 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         >
@@ -615,7 +610,7 @@ function App() {
                   setStoredDeviceName(deviceName)
                 }
               }}
-              className="premium-input text-sm border-0 p-0 bg-transparent focus:ring-0 w-32"
+              className="bg-[var(--bg-elevated)] border-[1.5px] border-[var(--border-secondary)] rounded-xl px-5 py-3.5 text-[var(--text-primary)] font-['Biryani'] transition-all duration-300 w-full text-sm border-0 p-0 bg-transparent focus:ring-0 w-32 focus:outline-none focus:border-[var(--accent-primary)] focus:shadow-[var(--shadow-md)] focus:-translate-y-[1px]"
               autoFocus
               style={{ fontFamily: 'Biryani, sans-serif' }}
             />

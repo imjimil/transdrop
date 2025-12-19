@@ -75,14 +75,14 @@ export function MessageNotification({ message, from, onClose, variant = 'receive
         className="fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-50 max-w-md w-full mx-auto sm:mx-0 p-4 sm:p-0"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="premium-card p-6 shadow-lg">
+        <div className="bg-[var(--bg-elevated)] border-[1.5px] border-[var(--border-primary)] rounded-[1.25rem] shadow-[var(--shadow-md)] transition-all duration-300 p-6 shadow-lg">
           {/* Header */}
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1 pr-4">
-              <p className="text-xs opacity-70 theme-text mb-1">
+              <p className="text-xs opacity-70 text-[var(--text-primary)] font-['Biryani'] mb-1">
                 {isSent ? 'Message sent to' : 'Message from'}
               </p>
-              <p className="text-lg font-semibold theme-text" style={{ fontFamily: 'Biryani, sans-serif' }}>
+              <p className="text-lg font-semibold text-[var(--text-primary)] font-['Biryani']">
                 {from}
               </p>
             </div>
@@ -97,7 +97,7 @@ export function MessageNotification({ message, from, onClose, variant = 'receive
 
           {/* Message Content */}
           <div className="mb-4">
-            <p className="text-sm theme-text leading-relaxed break-words" style={{ fontFamily: 'Biryani, sans-serif' }}>
+            <p className="text-sm text-[var(--text-primary)] font-['Biryani'] leading-relaxed break-words">
               {messageParts}
             </p>
           </div>
@@ -106,7 +106,7 @@ export function MessageNotification({ message, from, onClose, variant = 'receive
           <div className="flex items-center justify-center">
             <motion.button
               onClick={handleCopy}
-              className="premium-btn premium-btn-secondary flex items-center gap-2 px-6 py-3 text-sm"
+              className="bg-[var(--bg-secondary)] border-[1.5px] border-[var(--border-secondary)] rounded-xl px-6 py-3 text-[var(--text-primary)] font-medium text-sm font-['Biryani'] transition-all duration-300 cursor-pointer shadow-[var(--shadow-sm)] hover:bg-[var(--accent-secondary)] hover:border-[var(--accent-secondary)] hover:text-[var(--bg-primary)] hover:shadow-[var(--shadow-md)] active:shadow-[var(--shadow-sm)] flex items-center gap-2"
               whileHover={{ y: -1 }}
               whileTap={{ y: 0 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}

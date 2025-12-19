@@ -80,15 +80,15 @@ export function TextInputModal({ isOpen, onClose, onSubmit, recipientName }: Tex
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="premium-card p-6 max-w-md w-full relative z-10"
+          className="bg-[var(--bg-elevated)] border-[1.5px] border-[var(--border-primary)] rounded-[1.25rem] shadow-[var(--shadow-md)] transition-all duration-300 p-6 max-w-md w-full relative z-10"
           onClick={(e) => e.stopPropagation()}
         >
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
-              <h2 className="text-xl premium-title mb-2">
+              <h2 className="text-xl text-[var(--text-primary)] font-normal font-['Bebas_Neue'] tracking-[0.05em] transition-all duration-300 uppercase drop-shadow-[0_2px_8px_rgba(11,46,51,0.1)] mb-2">
                 Send text to {recipientName}
               </h2>
-              <p className="text-xs opacity-70 theme-text mb-4">
+              <p className="text-xs opacity-70 text-[var(--text-primary)] font-['Biryani'] mb-4">
                 Press Enter to send, Shift+Enter for new line, Esc to cancel
               </p>
             </div>
@@ -108,8 +108,7 @@ export function TextInputModal({ isOpen, onClose, onSubmit, recipientName }: Tex
                   <Check size={48} className="text-[var(--accent-primary)]" strokeWidth={3} />
                 </motion.div>
                 <p 
-                  className="text-xl font-semibold theme-text"
-                  style={{ fontFamily: 'Biryani, sans-serif' }}
+                  className="text-xl font-semibold text-[var(--text-primary)] font-['Biryani']"
                 >
                   Sent!
                 </p>
@@ -122,8 +121,7 @@ export function TextInputModal({ isOpen, onClose, onSubmit, recipientName }: Tex
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Type your message..."
-                  className="premium-input w-full min-h-[120px] resize-none mb-4"
-                  style={{ fontFamily: 'Biryani, sans-serif' }}
+                  className="bg-[var(--bg-elevated)] border-[1.5px] border-[var(--border-secondary)] rounded-xl px-5 py-3.5 text-[var(--text-primary)] font-['Biryani'] transition-all duration-300 w-full min-h-[120px] resize-none mb-4 shadow-[var(--shadow-sm)] focus:outline-none focus:border-[var(--accent-primary)] focus:shadow-[var(--shadow-md)] focus:-translate-y-[1px] disabled:opacity-50"
                   disabled={isSending}
                 />
 
@@ -131,7 +129,7 @@ export function TextInputModal({ isOpen, onClose, onSubmit, recipientName }: Tex
                   <motion.button
                     type="button"
                     onClick={handleClose}
-                    className="premium-btn premium-btn-secondary flex-1"
+                    className="bg-[var(--bg-secondary)] border-[1.5px] border-[var(--border-secondary)] rounded-xl px-7 py-3.5 text-[var(--text-primary)] font-medium text-[0.9375rem] font-['Biryani'] transition-all duration-300 cursor-pointer shadow-[var(--shadow-sm)] hover:bg-[var(--accent-secondary)] hover:border-[var(--accent-secondary)] hover:text-[var(--bg-primary)] hover:shadow-[var(--shadow-md)] active:shadow-[var(--shadow-sm)] flex-1"
                     whileHover={{ y: -1 }}
                     whileTap={{ y: 0 }}
                     transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
@@ -142,7 +140,7 @@ export function TextInputModal({ isOpen, onClose, onSubmit, recipientName }: Tex
                   <motion.button
                     type="submit"
                     disabled={!text.trim() || isSending}
-                    className="premium-btn premium-btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-[var(--accent-primary)] border-[1.5px] border-[var(--accent-primary)] rounded-xl px-7 py-3.5 text-[var(--bg-primary)] font-medium text-[0.9375rem] font-['Biryani'] transition-all duration-300 cursor-pointer shadow-[var(--shadow-sm)] hover:bg-[var(--accent-dark)] hover:border-[var(--accent-dark)] hover:shadow-[var(--shadow-md)] active:shadow-[var(--shadow-sm)] flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     whileHover={{ y: -1 }}
                     whileTap={{ y: 0 }}
                     transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}

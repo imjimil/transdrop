@@ -83,11 +83,11 @@ export function PairingModal({ isOpen, onClose, onRoomJoin, deviceName }: Pairin
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="premium-card p-8 max-w-md w-full relative z-10"
+          className="bg-[var(--bg-elevated)] border-[1.5px] border-[var(--border-primary)] rounded-[1.25rem] shadow-[var(--shadow-md)] transition-all duration-300 p-8 max-w-md w-full relative z-10"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl premium-title">
+                    <h2 className="text-2xl text-[var(--text-primary)] font-normal font-['Bebas_Neue'] tracking-[0.05em] transition-all duration-300 uppercase drop-shadow-[0_2px_8px_rgba(11,46,51,0.1)]">
                       Pair Devices
                     </h2>
             <button
@@ -104,15 +104,15 @@ export function PairingModal({ isOpen, onClose, onRoomJoin, deviceName }: Pairin
             <div className="grid grid-cols-2 gap-4">
               {/* Your Code */}
               <div>
-                <p className="text-xs opacity-70 theme-text mb-2 text-center">Your code:</p>
-                <div className="premium-input text-center text-2xl font-mono tracking-[0.2em] py-3 px-4 font-bold">
+                <p className="text-xs opacity-70 text-[var(--text-primary)] font-['Biryani'] mb-2 text-center">Your code:</p>
+                <div className="bg-[var(--bg-elevated)] border-[1.5px] border-[var(--border-secondary)] rounded-xl px-5 py-3.5 text-[var(--text-primary)] font-['Biryani'] transition-all duration-300 w-full text-center text-2xl font-mono tracking-[0.2em] py-3 px-4 font-bold shadow-[var(--shadow-sm)]">
                   {myCode || '...'}
                 </div>
               </div>
 
               {/* Enter Other Code */}
               <div>
-                <p className="text-xs opacity-70 theme-text mb-2 text-center">Enter code:</p>
+                <p className="text-xs opacity-70 text-[var(--text-primary)] font-['Biryani'] mb-2 text-center">Enter code:</p>
                 <input
                   type="text"
                   value={enteredCode}
@@ -130,7 +130,7 @@ export function PairingModal({ isOpen, onClose, onRoomJoin, deviceName }: Pairin
                   }}
                   onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
                   placeholder="______"
-                  className="premium-input text-center text-2xl font-mono tracking-[0.2em] py-3 px-4 font-bold w-full"
+                  className="bg-[var(--bg-elevated)] border-[1.5px] border-[var(--border-secondary)] rounded-xl px-5 py-3.5 text-[var(--text-primary)] font-['Biryani'] transition-all duration-300 w-full text-center text-2xl font-mono tracking-[0.2em] py-3 px-4 font-bold shadow-[var(--shadow-sm)] focus:outline-none focus:border-[var(--accent-primary)] focus:shadow-[var(--shadow-md)] focus:-translate-y-[1px]"
                   maxLength={6}
                   autoFocus
                 />
@@ -149,7 +149,7 @@ export function PairingModal({ isOpen, onClose, onRoomJoin, deviceName }: Pairin
 
             <motion.button
               onClick={() => handleJoinRoom()}
-              className="premium-btn premium-btn-primary w-full"
+              className="bg-[var(--accent-primary)] border-[1.5px] border-[var(--accent-primary)] rounded-xl px-7 py-3.5 text-[var(--bg-primary)] font-medium text-[0.9375rem] font-['Biryani'] transition-all duration-300 cursor-pointer w-full shadow-[var(--shadow-sm)] hover:bg-[var(--accent-dark)] hover:border-[var(--accent-dark)] hover:shadow-[var(--shadow-md)] active:shadow-[var(--shadow-sm)] disabled:opacity-50 disabled:cursor-not-allowed w-full"
               whileHover={{ y: -2 }}
               whileTap={{ y: 0 }}
               disabled={!enteredCode || enteredCode.length !== 6}
