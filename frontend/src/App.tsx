@@ -441,7 +441,7 @@ function App() {
 
       {/* Main Content - Centered */}
       <div className="flex-1 flex flex-col items-center justify-center relative">
-        {/* Instruction Text at Top */}
+        {/* Instruction Text at Top - Always Visible */}
         <motion.div 
           className="text-center mb-6 px-4"
           initial={{ opacity: 0, y: -10 }}
@@ -452,10 +452,14 @@ function App() {
             Open TransDrop on other devices to send files
           </p>
           <p className="text-xs sm:text-sm opacity-70 text-[var(--text-primary)] font-['Biryani']">
-            {isMobile ? (
-              <>Tap to send file • Long press to send text</>
+            {discoveredDevices.length > 0 ? (
+              isMobile ? (
+                <>Tap device to send file • Long press to send text</>
+              ) : (
+                <>Left click device to send file • Right click to send text</>
+              )
             ) : (
-              <>Left click to send file • Right click to send text</>
+              <>Click the pair icon above to connect with other devices</>
             )}
           </p>
         </motion.div>
@@ -550,29 +554,7 @@ function App() {
                   );
                 })}
               </motion.div>
-            ) : (
-              <motion.div
-                key="instructions"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                className="absolute left-0 right-0 flex items-center justify-center px-4"
-                style={{ 
-                  top: '50%',
-                  transform: 'translateY(calc(-50% - 140px))'
-                }}
-              >
-                <div className="text-center">
-                  <p className="text-base sm:text-lg md:text-xl text-[var(--text-primary)] font-['Biryani'] font-medium mb-2">
-                    Open TransDrop on other devices to send files
-                  </p>
-                  <p className="text-xs sm:text-sm opacity-70 text-[var(--text-primary)] font-['Biryani']">
-                    Pair devices or enter a code to be discoverable
-                  </p>
-                </div>
-              </motion.div>
-            )}
+            ) : null}
           </AnimatePresence>
 
         </motion.div>
