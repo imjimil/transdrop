@@ -53,6 +53,7 @@ function linkify(text: string): (string | React.ReactElement)[] {
 
 export function MessageNotification({ message, from, onClose, variant = 'received', file }: MessageNotificationProps) {
   const [copied, setCopied] = useState(false)
+  const isSent = variant === 'sent'
 
   // Cleanup blob URL when component unmounts
   useEffect(() => {
@@ -81,7 +82,8 @@ export function MessageNotification({ message, from, onClose, variant = 'receive
       // Verify blob is valid
       if (!file.blob || file.blob.size === 0) {
         console.error('Invalid blob for download:', file)
-        alert('Error: File data is invalid or empty. Please try receiving the file again.')
+        // File data is invalid - this is handled by the parent component
+        console.error('Error: File data is invalid or empty.')
         return
       }
       
@@ -105,8 +107,7 @@ export function MessageNotification({ message, from, onClose, variant = 'receive
         }, 100)
       }, 0)
     } catch (error) {
-      console.error('Error downloading file:', error)
-      alert(`Failed to download file: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error(`Failed to download file: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -119,7 +120,6 @@ export function MessageNotification({ message, from, onClose, variant = 'receive
   }
 
   const messageParts = message ? linkify(message) : []
-  const isSent = variant === 'sent'
   const isFile = !!file
 
   return (
@@ -129,7 +129,7 @@ export function MessageNotification({ message, from, onClose, variant = 'receive
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 20, scale: 0.95 }}
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-        className="fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-50 max-w-md w-full mx-auto sm:mx-0 p-4 sm:p-0"
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-6 z-50 max-w-md w-[calc(100%-2rem)] sm:w-full mx-auto sm:mx-0 p-4 sm:p-0"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="bg-[var(--bg-elevated)] border-[1.5px] border-[var(--border-primary)] rounded-[1.25rem] shadow-[var(--shadow-md)] transition-all duration-300 p-6 shadow-lg">
@@ -177,41 +177,43 @@ export function MessageNotification({ message, from, onClose, variant = 'receive
             )}
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-center">
-            {isFile ? (
-              <motion.button
-                onClick={handleDownload}
-                className="bg-[var(--accent-primary)] border-[1.5px] border-[var(--accent-primary)] rounded-xl px-6 py-3 text-[var(--bg-primary)] font-medium text-sm font-['Biryani'] transition-all duration-300 cursor-pointer shadow-[var(--shadow-sm)] hover:bg-[var(--accent-dark)] hover:border-[var(--accent-dark)] hover:shadow-[var(--shadow-md)] active:shadow-[var(--shadow-sm)] flex items-center gap-2 w-full"
-                whileHover={{ y: -1 }}
-                whileTap={{ y: 0 }}
-                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <Download size={18} />
-                <span>Download</span>
-              </motion.button>
-            ) : (
-              <motion.button
-                onClick={handleCopy}
-                className="bg-[var(--bg-secondary)] border-[1.5px] border-[var(--border-secondary)] rounded-xl px-6 py-3 text-[var(--text-primary)] font-medium text-sm font-['Biryani'] transition-all duration-300 cursor-pointer shadow-[var(--shadow-sm)] hover:bg-[var(--accent-secondary)] hover:border-[var(--accent-secondary)] hover:text-[var(--bg-primary)] hover:shadow-[var(--shadow-md)] active:shadow-[var(--shadow-sm)] flex items-center gap-2 w-full"
-                whileHover={{ y: -1 }}
-                whileTap={{ y: 0 }}
-                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              >
-                {copied ? (
-                  <>
-                    <Check size={18} />
-                    <span>Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Clipboard size={18} />
-                    <span>Copy</span>
-                  </>
-                )}
-              </motion.button>
-            )}
-          </div>
+          {/* Actions - Only show for received messages */}
+          {!isSent && (
+            <div className="flex items-center justify-center">
+              {isFile ? (
+                <motion.button
+                  onClick={handleDownload}
+                  className="bg-[var(--accent-primary)] border-[1.5px] border-[var(--accent-primary)] rounded-xl px-6 py-3 text-[var(--bg-primary)] font-medium text-sm font-['Biryani'] transition-all duration-300 cursor-pointer shadow-[var(--shadow-sm)] hover:bg-[var(--accent-dark)] hover:border-[var(--accent-dark)] hover:shadow-[var(--shadow-md)] active:shadow-[var(--shadow-sm)] flex items-center gap-2 w-full"
+                  whileHover={{ y: -1 }}
+                  whileTap={{ y: 0 }}
+                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <Download size={18} />
+                  <span>Download</span>
+                </motion.button>
+              ) : (
+                <motion.button
+                  onClick={handleCopy}
+                  className="bg-[var(--bg-secondary)] border-[1.5px] border-[var(--border-secondary)] rounded-xl px-6 py-3 text-[var(--text-primary)] font-medium text-sm font-['Biryani'] transition-all duration-300 cursor-pointer shadow-[var(--shadow-sm)] hover:bg-[var(--accent-secondary)] hover:border-[var(--accent-secondary)] hover:text-[var(--bg-primary)] hover:shadow-[var(--shadow-md)] active:shadow-[var(--shadow-sm)] flex items-center gap-2 w-full"
+                  whileHover={{ y: -1 }}
+                  whileTap={{ y: 0 }}
+                  transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  {copied ? (
+                    <>
+                      <Check size={18} />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Clipboard size={18} />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </motion.button>
+              )}
+            </div>
+          )}
         </div>
       </motion.div>
     </AnimatePresence>

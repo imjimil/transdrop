@@ -30,17 +30,12 @@ export function PairingModal({ isOpen, onClose, onRoomJoin, deviceName, currentR
 
   // Track connection success - close modal when a new device connects
   useEffect(() => {
-    // Debug logging - always log to see what's happening
-    console.log(`[PairingModal] Effect running: connectedDevicesCount=${connectedDevicesCount}, baselineDeviceCount=${baselineDeviceCount}, isConnecting=${isConnecting}`)
-    
     // If we're actively connecting (user entered a code), check against baseline
     if (isConnecting) {
       // Only trigger success if device count increased while connecting
       const hasNewConnection = connectedDevicesCount > baselineDeviceCount
-      console.log(`[PairingModal] Connection check (active): hasNewConnection=${hasNewConnection} (${baselineDeviceCount} → ${connectedDevicesCount})`)
       
       if (hasNewConnection) {
-        console.log(`[PairingModal] ✅ Connection detected! Count: ${baselineDeviceCount} → ${connectedDevicesCount}. Closing modal...`)
         setConnectionSuccess(true)
         setIsConnecting(false)
         setTimeout(() => {
@@ -56,7 +51,6 @@ export function PairingModal({ isOpen, onClose, onRoomJoin, deviceName, currentR
       // Only close if we have at least one device connected
       if (connectedDevicesCount > 0 && baselineDeviceCount === 0) {
         // This means a device connected while modal was open (receiving side)
-        console.log(`[PairingModal] ✅ Device connected on receiving side! Closing modal...`)
         setConnectionSuccess(true)
         setTimeout(() => {
           onClose()
@@ -66,8 +60,6 @@ export function PairingModal({ isOpen, onClose, onRoomJoin, deviceName, currentR
         return
       }
     }
-    
-    console.log(`[PairingModal] ⏳ Waiting for connection... (count: ${connectedDevicesCount}, baseline: ${baselineDeviceCount})`)
   }, [connectedDevicesCount, isConnecting, baselineDeviceCount, onClose])
 
   // Initialize room code only once when modal first opens
@@ -145,7 +137,6 @@ export function PairingModal({ isOpen, onClose, onRoomJoin, deviceName, currentR
     setConnectionSuccess(false)
     // Set baseline count BEFORE setting isConnecting to true
     // This ensures we only detect NEW connections that happen after this point
-    console.log(`[PairingModal] Starting connection: current device count = ${connectedDevicesCount}`)
     setBaselineDeviceCount(connectedDevicesCount)
     setIsConnecting(true)
     onRoomJoin(code)

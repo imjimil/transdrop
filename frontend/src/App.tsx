@@ -46,11 +46,8 @@ function App() {
 
   // Callbacks for WebRTC - wrapped in useCallback to prevent hook order issues
   const handlePeerConnected = useCallback((peerId: string, peerDeviceName?: string) => {
-    console.log(`🔔 handlePeerConnected called for ${peerId} (${peerDeviceName || 'no name'})`)
-    
     // FINAL GUARD: Skip if we've already processed this peer
     if (processedPeersRef.current.has(peerId)) {
-      console.log(`⚠️ Peer ${peerId} already processed in handlePeerConnected, skipping`)
       return // Already processed, skip
     }
     
@@ -58,8 +55,6 @@ function App() {
     
     // Mark as processed immediately
     processedPeersRef.current.add(peerId)
-    
-    console.log(`✅ Adding device to UI: ${deviceNameToShow} (${peerId})`)
     
     setDiscoveredDevices(prev => {
       // Check if device already exists - this is the final guard against duplicates
@@ -73,13 +68,11 @@ function App() {
         return prev
       }
       // Add new device - this should only happen once per peer
-      console.log(`✓ Connected: ${deviceName} ↔ ${deviceNameToShow}`)
       const newDevices: Device[] = [...prev, {
         id: peerId,
         name: deviceNameToShow,
         type: 'laptop' as const
       }]
-      console.log(`[App] Device count updated: ${prev.length} → ${newDevices.length}`)
       return newDevices
     })
   }, [deviceName])
@@ -89,10 +82,6 @@ function App() {
     processedPeersRef.current.delete(peerId)
     
     setDiscoveredDevices(prev => {
-      const device = prev.find(d => d.id === peerId)
-      if (device) {
-        console.log(`✗ Disconnected: ${deviceName} ↔ ${device.name}`)
-      }
       return prev.filter(d => d.id !== peerId)
     })
   }, [deviceName])
@@ -111,12 +100,8 @@ function App() {
     }
     
     // Handle JSON data (text messages and file metadata)
-    console.log(`📨 Received JSON data:`, data)
-    console.log(`📨 JSON data type:`, data.type, data.type === 'file-metadata' ? '✅ METADATA!' : '')
-    
     // Handle received text
     if (data.type === 'text') {
-      console.log(`📥 Received text from "${data.from || senderDeviceName || 'Unknown'}" to "${deviceName}":`, data.text)
       // Play notification sound
       playNotificationSound()
       setReceivedMessage({
@@ -131,25 +116,8 @@ function App() {
         fileTransferRef.current.handleFileMetadata(data)
       }
       playNotificationSound()
-    } else {
-      console.warn(`⚠️ Unknown JSON data type:`, data.type, data)
     }
   }, [deviceName])
-
-  // Debug: Log when receivedMessage changes
-  useEffect(() => {
-    if (receivedMessage) {
-      console.log(`📬 [STATE] receivedMessage updated:`, {
-        variant: receivedMessage.variant,
-        hasText: !!receivedMessage.text,
-        hasFile: !!receivedMessage.file,
-        fileName: receivedMessage.file?.name,
-        fileSize: receivedMessage.file?.size
-      })
-    } else {
-      console.log(`📬 [STATE] receivedMessage cleared`)
-    }
-  }, [receivedMessage])
 
   // WebRTC connection
   const { joinRoom, sendData } = useWebRTC({
@@ -218,33 +186,34 @@ function App() {
       return false
     }
     
-    const messageData = {
-      type: 'text',
-      text: text.trim(),
-      from: deviceName,
-      timestamp: Date.now(),
-    }
-    
-    console.log(`📤 Attempting to send text from "${deviceName}" to "${device.name}" (peerId: ${device.id}):`, text.trim())
-    
-    // Wait for connection to be ready (with timeout)
-    let attempts = 0
-    const maxAttempts = 20 // 10 seconds total
-    while (attempts < maxAttempts) {
-      const success = sendData(device.id, messageData)
-      if (success) {
-        console.log(`✅ Text sent successfully from "${deviceName}" to "${device.name}"`)
-        return true
-      }
-      
-      // Wait 500ms before retry
-      await new Promise(resolve => setTimeout(resolve, 500))
-      attempts++
-    }
-    
-    console.error(`❌ Failed to send text to ${device.name} after ${maxAttempts} attempts`)
-    alert(`Failed to send text to ${device.name}. The connection may not be ready yet. Please try again in a moment.`)
-    return false
+            const messageData = {
+              type: 'text',
+              text: text.trim(),
+              from: deviceName,
+              timestamp: Date.now(),
+            }
+            
+            // Wait for connection to be ready (with timeout)
+            let attempts = 0
+            const maxAttempts = 20 // 10 seconds total
+            while (attempts < maxAttempts) {
+              const success = sendData(device.id, messageData)
+              if (success) {
+                return true
+              }
+              
+              // Wait 500ms before retry
+              await new Promise(resolve => setTimeout(resolve, 500))
+              attempts++
+            }
+            
+            console.error(`Failed to send text to ${device.name} after ${maxAttempts} attempts`)
+            setReceivedMessage({
+              text: `Failed to send text to ${device.name}. The connection may not be ready yet. Please try again in a moment.`,
+              from: deviceName,
+              variant: 'sent'
+            })
+            return false
   }, [sendData, deviceName, textInputModal.recipient])
 
   // Handle sending file
@@ -260,9 +229,17 @@ function App() {
 
       try {
         await sendFile(device.id, file)
-        alert(`File "${file.name}" sent to ${device.name}`)
+        setReceivedMessage({
+          text: `File "${file.name}" sent to ${device.name}`,
+          from: deviceName,
+          variant: 'sent'
+        })
       } catch (error) {
-        alert(error instanceof Error ? error.message : 'Failed to send file')
+        setReceivedMessage({
+          text: error instanceof Error ? error.message : 'Failed to send file',
+          from: deviceName,
+          variant: 'sent'
+        })
       }
     }
 
@@ -588,9 +565,9 @@ function App() {
         connectedDevicesCount={discoveredDevices.length}
       />
 
-      {/* Message Notification - Only for received messages */}
+      {/* Message Notification - For both received and sent messages */}
       <AnimatePresence>
-        {receivedMessage && receivedMessage.variant === 'received' && (
+        {receivedMessage && (
           <div
             className="fixed inset-0 z-40"
             onClick={() => {
@@ -609,7 +586,7 @@ function App() {
                 }
                 setReceivedMessage(null)
               }}
-              variant="received"
+              variant={receivedMessage.variant || 'received'}
               file={receivedMessage.file}
             />
           </div>

@@ -20,8 +20,6 @@ const deviceInfo = new Map<string, { name: string, roomId: string }>()
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id)
-
   // Join a room
   socket.on('join-room', (data: { roomId: string, deviceName?: string }) => {
     const roomId = typeof data === 'string' ? data : data.roomId
@@ -38,9 +36,6 @@ io.on('connection', (socket) => {
     if (deviceName) {
       deviceInfo.set(socket.id, { name: deviceName, roomId })
     }
-    
-    const roomSize = rooms.get(roomId)!.size
-    console.log(`Socket ${socket.id} joined room ${roomId} (${roomSize} users)${deviceName ? ` as ${deviceName}` : ''}`)
     
     // Notify others in the room with device info
     const deviceInfoForPeer = deviceInfo.get(socket.id)
@@ -97,7 +92,6 @@ io.on('connection', (socket) => {
 
   // Disconnect
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id)
     // Clean up rooms and device info
     for (const [roomId, peers] of rooms.entries()) {
       if (peers.has(socket.id)) {

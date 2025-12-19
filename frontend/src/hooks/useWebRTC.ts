@@ -42,11 +42,8 @@ export function useWebRTC({
   const createPeer = useCallback((peerId: string, initiator: boolean) => {
     // Don't create duplicate peers
     if (peersRef.current.has(peerId)) {
-      console.log(`⚠️ Peer ${peerId} already exists, skipping creation`)
       return
     }
-
-    console.log(`🔧 Creating WebRTC peer connection for ${peerId} (initiator: ${initiator})`)
 
     try {
       const peer = new Peer({
@@ -61,7 +58,6 @@ export function useWebRTC({
       })
 
       peersRef.current.set(peerId, peer)
-      console.log(`✅ Peer ${peerId} added to peers map. Total peers: ${peersRef.current.size}`)
 
       peer.on('signal', (data: any) => {
         if (!socketRef.current?.connected) return
@@ -88,7 +84,6 @@ export function useWebRTC({
       })
 
       peer.on('connect', () => {
-        console.log(`🔗 WebRTC peer ${peerId} connected! Data channel ready.`)
         setConnectedPeers(prev => {
           const next = new Set([...prev, peerId])
           connectedPeersRef.current = next
@@ -97,7 +92,6 @@ export function useWebRTC({
         // Notify about peer connection if we haven't already
         // This ensures devices show up even if socket events didn't fire properly
         if (!notifiedPeersRef.current.has(peerId)) {
-          console.log(`📢 Notifying about peer ${peerId} from WebRTC connect event`)
           notifiedPeersRef.current.add(peerId)
           // Get device name from stored peer info if available
           const storedDeviceName = peerDeviceNamesRef.current.get(peerId)
@@ -109,39 +103,18 @@ export function useWebRTC({
         try {
           const senderName = peerDeviceNamesRef.current.get(peerId) || 'Unknown'
           
-          const dataLength = data instanceof ArrayBuffer ? data.byteLength : 
-                            data instanceof Uint8Array ? data.length :
-                            (typeof Buffer !== 'undefined' && Buffer.isBuffer(data)) ? data.length :
-                            typeof data === 'string' ? data.length : 'unknown'
-          
-          console.log(`📥 [RECEIVER] Data received from ${peerId}:`, {
-            dataType: typeof data,
-            isArrayBuffer: data instanceof ArrayBuffer,
-            isUint8Array: data instanceof Uint8Array,
-            isBuffer: typeof Buffer !== 'undefined' && Buffer.isBuffer(data),
-            dataLength: dataLength,
-            firstBytes: data instanceof ArrayBuffer 
-              ? Array.from(new Uint8Array(data.slice(0, Math.min(50, data.byteLength)))).join(',')
-              : data instanceof Uint8Array
-              ? Array.from(data.slice(0, Math.min(50, data.length))).join(',')
-              : data.toString().substring(0, 100)
-          })
-          
           // Check if data is binary - simple-peer may return Buffer, Uint8Array, or ArrayBuffer
           let arrayBuffer: ArrayBuffer | null = null
           
           if (data instanceof ArrayBuffer) {
-            console.log(`📥 [RECEIVER] Detected ArrayBuffer (${data.byteLength} bytes)`)
             arrayBuffer = data
           } else if (data instanceof Uint8Array) {
-            console.log(`📥 [RECEIVER] Detected Uint8Array (${data.length} bytes)`)
             // Convert Uint8Array to ArrayBuffer
             // Always create a new ArrayBuffer to avoid SharedArrayBuffer issues
             arrayBuffer = new ArrayBuffer(data.length)
             const view = new Uint8Array(arrayBuffer)
             view.set(data)
           } else if (typeof Buffer !== 'undefined' && Buffer.isBuffer(data)) {
-            console.log(`📥 [RECEIVER] Detected Buffer (${data.length} bytes)`)
             // Convert Node.js Buffer to ArrayBuffer
             arrayBuffer = new ArrayBuffer(data.length)
             const view = new Uint8Array(arrayBuffer)
@@ -163,7 +136,6 @@ export function useWebRTC({
               const uint8Array = new Uint8Array(arrayBuffer)
               jsonString = new TextDecoder().decode(uint8Array)
               isJson = true
-              console.log(`📥 [RECEIVER] Uint8Array/Buffer contains JSON! Converting to string...`)
             }
           } else {
             // Already a string
@@ -173,36 +145,27 @@ export function useWebRTC({
           
           if (isJson && jsonString) {
             // String data - parse as JSON
-            console.log(`📥 [RECEIVER] Detected JSON string (${jsonString.length} chars):`, jsonString.substring(0, 200))
             try {
               const parsed = JSON.parse(jsonString)
-              console.log(`📥 [RECEIVER] ✅ Successfully parsed JSON:`, parsed)
-              console.log(`📥 [RECEIVER] JSON type:`, parsed.type)
-              if (parsed.type === 'file-metadata') {
-                console.log(`📥 [RECEIVER] 🎯 THIS IS FILE METADATA!`)
-              }
               callbacksRef.current.onDataReceived?.(parsed, senderName)
             } catch (parseError) {
-              console.error(`❌ [RECEIVER] Failed to parse JSON from ${peerId}:`, parseError)
-              console.error(`❌ [RECEIVER] Raw data string:`, jsonString)
+              console.error(`Failed to parse JSON from peer ${peerId}:`, parseError)
             }
           } else if (arrayBuffer) {
             // Binary data - pass ArrayBuffer
-            console.log(`📥 [RECEIVER] Passing as binary ArrayBuffer (${arrayBuffer.byteLength} bytes)`)
             callbacksRef.current.onDataReceived?.(arrayBuffer, senderName)
           } else {
             // Fallback - try to parse as string
             const dataString = data.toString()
-            console.log(`📥 [RECEIVER] Fallback: treating as string (${dataString.length} chars):`, dataString.substring(0, 200))
             try {
               const parsed = JSON.parse(dataString)
               callbacksRef.current.onDataReceived?.(parsed, senderName)
             } catch (parseError) {
-              console.error(`❌ [RECEIVER] Failed to parse as JSON:`, parseError)
+              console.error(`Failed to parse as JSON:`, parseError)
             }
           }
         } catch (e) {
-          console.error(`❌ [RECEIVER] Error processing data from peer ${peerId}:`, e)
+          console.error(`Error processing data from peer ${peerId}:`, e)
         }
       })
 
@@ -211,7 +174,6 @@ export function useWebRTC({
       })
 
       peer.on('close', () => {
-          console.log(`🔌 WebRTC peer ${peerId} closed`)
           setConnectedPeers(prev => {
             const next = new Set(prev)
             next.delete(peerId)
@@ -287,14 +249,11 @@ export function useWebRTC({
         socketInstance.on('peers', (peersData: Array<{ peerId: string, deviceName?: string }> | string[]) => {
           if (!mounted) return
           
-          console.log(`📋 Received 'peers' event:`, peersData)
-          
           // Handle both old format (string[]) and new format (Array<{peerId, deviceName}>)
           const peerIds = Array.isArray(peersData) && peersData.length > 0 && typeof peersData[0] === 'string'
             ? peersData as string[]
             : (peersData as Array<{ peerId: string, deviceName?: string }>).map(p => p.peerId)
           
-          console.log(`📋 Processed peer IDs:`, peerIds)
           setPeers(peerIds)
           
           // Create WebRTC connections to existing peers and notify with device names
@@ -303,10 +262,7 @@ export function useWebRTC({
             peersWithInfo.forEach(({ peerId, deviceName }) => {
               // Create peer connection if needed
               if (!peersRef.current.has(peerId)) {
-                console.log(`📡 Creating peer connection for ${peerId} from 'peers' event`)
                 createPeer(peerId, true)
-              } else {
-                console.log(`ℹ️ Peer ${peerId} already exists in map`)
               }
               
               // Store device name for later use
@@ -339,11 +295,8 @@ export function useWebRTC({
         socketInstance.on('peer-joined', ({ peerId, deviceName }: { peerId: string, deviceName?: string }) => {
           if (!mounted) return
           
-          console.log(`👋 Received 'peer-joined' event for ${peerId} (${deviceName || 'no name'})`)
-          
           // STRICT: Skip if we've already notified about this peer (prevents duplicates)
           if (notifiedPeersRef.current.has(peerId)) {
-            console.log(`⚠️ Peer ${peerId} already notified, skipping`)
             return // Already processed this peer, skip completely
           }
           
@@ -353,10 +306,7 @@ export function useWebRTC({
           })
           
           if (!peersRef.current.has(peerId)) {
-            console.log(`📡 Creating peer connection for ${peerId} from 'peer-joined' event`)
             createPeer(peerId, false)
-          } else {
-            console.log(`ℹ️ Peer ${peerId} already exists in map`)
           }
           
           // Store device name for later use
@@ -513,43 +463,22 @@ export function useWebRTC({
     const peer = peersRef.current.get(peerId)
     const isConnected = connectedPeersRef.current.has(peerId)
     
-    console.log(`📤 [sendData] Called for peer ${peerId}:`, {
-      peerExists: !!peer,
-      isConnected,
-      dataType: data instanceof ArrayBuffer ? 'ArrayBuffer' : typeof data,
-      dataSize: data instanceof ArrayBuffer ? data.byteLength : (typeof data === 'object' ? JSON.stringify(data).length : data.length),
-      isArrayBuffer: data instanceof ArrayBuffer
-    })
-    
     // Check if peer exists and is connected
     if (peer && isConnected) {
       try {
         // If data is ArrayBuffer, send directly (for file chunks)
         if (data instanceof ArrayBuffer) {
-          console.log(`📤 [sendData] Sending ArrayBuffer (${data.byteLength} bytes) to ${peerId}`)
           peer.send(data)
           return true
         }
         // Otherwise, stringify JSON data (for text messages and metadata)
         const dataString = JSON.stringify(data)
-        console.log(`📤 [sendData] Sending JSON string (${dataString.length} chars) to ${peerId}:`, dataString.substring(0, 200))
-        console.log(`📤 [sendData] Full JSON:`, data)
         peer.send(dataString)
-        console.log(`📤 [sendData] ✅ Sent successfully to ${peerId}`)
         return true
       } catch (error) {
-        console.error(`❌ [sendData] Error sending data to peer ${peerId}:`, error)
+        console.error(`Error sending data to peer ${peerId}:`, error)
         return false
       }
-    }
-    
-    console.warn(`⚠️ [sendData] Cannot send - peer: ${!!peer}, connected: ${isConnected}`)
-    
-    // If peer exists but not connected, log the issue
-    if (peer && !isConnected) {
-      console.warn(`⚠️ Peer ${peerId} exists but is not connected yet.`)
-    } else if (!peer) {
-      console.warn(`⚠️ Peer ${peerId} does not exist in peers map. Available peers:`, Array.from(peersRef.current.keys()))
     }
     
     return false

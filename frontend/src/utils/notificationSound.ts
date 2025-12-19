@@ -31,7 +31,6 @@ export function playNotificationSound() {
   } catch (error) {
     // Fallback: silently fail if audio context is not available
     // (e.g., user hasn't interacted with the page yet)
-    console.debug('Could not play notification sound:', error)
   }
 }
 
