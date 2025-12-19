@@ -1,61 +1,138 @@
-# TransDrop 🚀
+## TransDrop
 
-A beautiful, cross-platform file transfer service that works seamlessly across Windows, Android, and Mac - like AirDrop, but for everyone.
+Cross-platform, AirDrop-style file and text sharing that works between browsers on Windows, Android, and macOS. Files are sent directly between devices using WebRTC; the server is used only for signaling and never stores file contents.
 
-## ✨ Features
+### Features
 
-- **Peer-to-Peer Transfers**: Direct device-to-device file transfer via WebRTC (no server storage)
-- **Modern UI/UX**: Glassmorphism + Neumorphism design with smooth animations
-- **Progressive Web App**: Works everywhere, installable on all platforms
-- **Zero Accounts**: No sign-up required, just share and transfer
-- **Mobile-First**: Intuitive, gesture-friendly interface
+- **Peer-to-peer transfers**: Files and text are sent over WebRTC data channels directly between browsers (no file storage on the server).
+- **Automatic pairing and recents**: Remember previously paired devices and auto-reconnect when both sides come back online.
+- **Code-based pairing**: Six-digit codes plus a “Recent devices” list to connect quickly and safely.
+- **Modern UI/UX**: Minimal, radar-style layout with device bubbles, clear progress indicators, and custom notifications.
+- **Mobile and desktop**: Click/right-click on desktop, tap/long-press on mobile, with responsive layout and icons for device type.
 
-## 🛠️ Tech Stack
+### Tech Stack
 
-- **Frontend**: React + TypeScript + Vite + Tailwind CSS + Radix UI + Framer Motion
-- **Backend**: Node.js + Fastify + TypeScript + Socket.io (signaling only)
-- **WebRTC**: Simple-peer for P2P connections
-- **Design**: Glassmorphism + Neumorphism hybrid
+- **Frontend**
+  - React + TypeScript + Vite
+  - Tailwind CSS for styling
+  - Framer Motion for animations
+  - Lucide React icons
 
-## 🚀 Getting Started
+- **Backend**
+  - Node.js (TypeScript)
+  - Socket.io for WebSocket signaling
 
-### Prerequisites
-- Node.js 18+ 
-- npm or yarn
+- **Realtime / Transport**
+  - WebRTC DataChannel via `simple-peer` for peer-to-peer connections and file transfer
 
-### Development
+### How It Works
+
+- **Signaling (server side)**
+  - The backend keeps three in-memory maps:
+    - `rooms`: `roomId -> Set<socketId>`
+    - `deviceInfo`: `socketId -> { name, roomId }`
+    - `deviceSubscriptions`: `deviceName -> Set<socketId>` for “recent devices” auto-reconnect.
+  - When a client joins a room, the server:
+    - Adds the socket to the room.
+    - Notifies existing peers in that room via `peer-joined`.
+    - Sends the new client a `peers` list so it can initiate WebRTC connections.
+    - Emits a targeted `room-join-request` only to clients that have that device in their recent history.
+  - WebRTC signaling messages (`offer`, `answer`, `ice-candidate`) are just forwarded between peers; the server never sees file content.
+
+- **WebRTC / P2P (frontend)**
+  - Each peer connection is created and managed by a custom `useWebRTC` hook.
+  - File transfer is handled by `useFileTransfer`, which:
+    - Chunks files into small pieces.
+    - Sends metadata first (name, size, type, total chunks).
+    - Streams binary chunks over the data channel with progress updates.
+    - Reassembles the file on the receiver and exposes it to the UI.
+
+- **Pairing and recents**
+  - `pairingHistory` stores recent pairings in `localStorage` as:
+    - `{ deviceName, roomId, lastConnected, connectionCount }`.
+  - Room IDs for a pair of devices are deterministic using `generatePairingRoomId(deviceName1, deviceName2)` so both sides derive the same six-digit code without coordination.
+  - On mount, the app:
+    - Looks up the most recent pairing.
+    - Auto-joins that room if possible (auto-reconnect).
+  - The “Recent devices” list lets you:
+    - Click a device to reconnect.
+    - Remove entries from history.
+
+### Security Model
+
+- **Transport encryption**
+  - All file and text data between browsers is sent over WebRTC DataChannels.
+  - WebRTC in browsers uses DTLS/SRTP, so the connection between peers is encrypted by default.
+
+- **Server visibility**
+  - The server only sees:
+    - Signaling metadata (room IDs, device names, socket IDs).
+    - Which sockets are in which rooms.
+  - The server does **not**:
+    - Store files.
+    - See file contents or text sent over the data channel.
+
+- **Persistence**
+  - On the server: `rooms`, `deviceInfo`, and `deviceSubscriptions` are kept **in memory only** and are lost on restart.
+  - On the client: device name and pairing history are stored in `localStorage` per browser.
+
+
+### Getting Started
+
+#### Prerequisites
+
+- Node.js 18+
+- npm (or another Node package manager)
+
+#### Install dependencies
+
+From the project root:
 
 ```bash
-# Install dependencies
+cd backend
 npm install
 
-# Start frontend (dev mode)
-cd frontend && npm run dev
-
-# Start backend (dev mode)
-cd backend && npm run dev
+cd ../frontend
+npm install
 ```
 
-Frontend runs on `http://localhost:5173`
-Backend runs on `http://localhost:3000`
+#### Run in development
 
-## 📁 Project Structure
+Backend (signaling server):
 
+```bash
+cd backend
+npm run dev
 ```
+
+Frontend (React app):
+
+```bash
+cd frontend
+npm run dev
+```
+
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:3000`
+
+### Project Structure
+
+```text
 transdrop/
-├── frontend/          # React PWA application
-├── backend/           # Node.js signaling server
-└── README.md
+  backend/        Node.js + Socket.io signaling server
+  frontend/       React + Vite frontend (TransDrop UI)
+  README.md       This file
+  SETUP.md        Additional setup notes
+  TECHNICAL_DISCUSSION.md   Deeper technical design notes
 ```
 
-## 🎨 Design Philosophy
+### Notes for Production
 
-- **Glassmorphism**: Frosted glass effects, blur, transparency
-- **Neumorphism**: Soft shadows, subtle depth
-- **Dark Mode First**: Vibrant gradients on dark backgrounds
-- **Mobile-First**: Touch-friendly, gesture-based interactions
+- Run the signaling server behind HTTPS/WSS (for encrypted signaling).
+- Consider horizontal scaling with a shared Socket.io adapter (Redis) if you outgrow a single node.
+- Monitor memory use; the current in-memory structures are sized for active sessions only and are cleaned up on disconnect.
 
-## 📝 License
+### License
 
 MIT
 
