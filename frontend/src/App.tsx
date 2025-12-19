@@ -10,6 +10,7 @@ import { FileProgressNotification } from './components/FileProgressNotification'
 import { TextInputModal } from './components/TextInputModal'
 import { getOrCreateDeviceName, setStoredDeviceName } from './utils/deviceName'
 import { playNotificationSound } from './utils/notificationSound'
+import { formatFileSize } from './utils/fileSize'
 
 interface Device {
   id: string
@@ -235,6 +236,27 @@ function App() {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
 
+      // File size validation
+      const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024 // 2GB hard limit
+      const WARNING_SIZE = 500 * 1024 * 1024 // 500MB warning threshold
+      
+      if (file.size > MAX_FILE_SIZE) {
+        setReceivedMessage({
+          text: `File "${file.name}" is too large (${formatFileSize(file.size)}). Maximum file size is 2GB.`,
+          from: deviceName,
+          variant: 'sent'
+        })
+        return
+      }
+      
+      if (file.size > WARNING_SIZE) {
+        // Show warning but allow sending
+        const proceed = window.confirm(
+          `Warning: "${file.name}" is ${formatFileSize(file.size)}. Large files may take a long time to transfer and could fail on mobile devices. Continue?`
+        )
+        if (!proceed) return
+      }
+
       try {
         await sendFile(device.id, file)
         // Clear progress
@@ -256,7 +278,7 @@ function App() {
     }
 
     input.click()
-  }, [sendFile])
+  }, [sendFile, deviceName])
 
   // Handle device click - left click = send file, right click = send text (desktop)
   // On mobile: tap = send file, long press = send text

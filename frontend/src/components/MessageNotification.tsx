@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import { X, Check, Clipboard, Download } from 'lucide-react'
 import React from 'react'
+import { formatFileSize } from '../utils/fileSize'
 
 interface MessageNotificationProps {
   message?: string
@@ -111,13 +112,6 @@ export function MessageNotification({ message, from, onClose, variant = 'receive
     }
   }
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
-  }
 
   const messageParts = message ? linkify(message) : []
   const isFile = !!file
