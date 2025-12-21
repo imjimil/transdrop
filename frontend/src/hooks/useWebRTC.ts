@@ -53,9 +53,9 @@ export function useWebRTC({
 
     try {
       // Configure ICE Servers with Metered TURN for WiFi client isolation
-      const turnUsername = import.meta.env.TURN_USERNAME;
-      const turnCredential = import.meta.env.TURN_CREDENTIAL;
-      const forceRelay = import.meta.env.FORCE_TURN === 'true';
+      const turnUsername = import.meta.env.VITE_TURN_USERNAME;
+      const turnCredential = import.meta.env.VITE_TURN_CREDENTIAL;
+      const forceRelay = import.meta.env.VITE_FORCE_TURN === 'true';
       
       const iceServers: RTCIceServer[] = [
         // Metered STUN server
@@ -99,7 +99,7 @@ export function useWebRTC({
         trickle: true, // Enable trickle ICE for faster connection
         config: {
           iceServers,
-          // Force relay mode when FORCE_TURN=true (bypasses WiFi client isolation)
+          // Force relay mode when VITE_FORCE_TURN=true (bypasses WiFi client isolation)
           iceTransportPolicy: forceRelay ? 'relay' : 'all',
         },
       })
