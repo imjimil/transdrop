@@ -52,18 +52,86 @@ export function useWebRTC({
     }
 
     try {
+      // Configure ICE Servers with Metered TURN for WiFi client isolation
+      const turnUsername = import.meta.env.VITE_TURN_USERNAME;
+      const turnCredential = import.meta.env.VITE_TURN_CREDENTIAL;
+      const forceRelay = import.meta.env.VITE_FORCE_TURN === 'true';
+      
+      const iceServers: RTCIceServer[] = [
+        // Metered STUN server
+        { urls: 'stun:stun.relay.metered.ca:80' },
+        // Google STUN as backup
+        { urls: 'stun:stun.l.google.com:19302' },
+      ];
+
+      // Add Metered TURN servers if credentials provided
+      if (turnUsername && turnCredential) {
+        iceServers.push(
+          {
+            urls: 'turn:global.relay.metered.ca:80',
+            username: turnUsername,
+            credential: turnCredential
+          },
+          {
+            urls: 'turn:global.relay.metered.ca:80?transport=tcp',
+            username: turnUsername,
+            credential: turnCredential
+          },
+          {
+            urls: 'turn:global.relay.metered.ca:443',
+            username: turnUsername,
+            credential: turnCredential
+          },
+          {
+            urls: 'turns:global.relay.metered.ca:443?transport=tcp',
+            username: turnUsername,
+            credential: turnCredential
+          }
+        );
+      }
+
+      if (forceRelay) {
+        console.log('🔀 Forcing TURN relay mode (required for WiFi client isolation)');
+      }
+
       const peer = new Peer({
         initiator,
-        trickle: false,
+        trickle: true, // Enable trickle ICE for faster connection
         config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-          ],
+          iceServers,
+          // Force relay mode when VITE_FORCE_TURN=true (bypasses WiFi client isolation)
+          iceTransportPolicy: forceRelay ? 'relay' : 'all',
         },
       })
 
       peersRef.current.set(peerId, peer)
+      
+      // Log ICE candidates to verify TURN is being used
+      try {
+        const pc = (peer as any).pc as RTCPeerConnection | undefined
+        if (pc) {
+          pc.addEventListener('icecandidate', (event) => {
+            if (event.candidate) {
+              const candidate = event.candidate.candidate
+              if (candidate.includes('relay')) {
+                console.log(`✅ TURN relay candidate found for ${peerId}:`, candidate.substring(0, 100))
+              }
+            } else {
+              console.log(`✅ ICE candidate gathering complete for ${peerId}`)
+            }
+          })
+          
+          pc.addEventListener('iceconnectionstatechange', () => {
+            const state = pc.iceConnectionState
+            console.log(`🔷 ICE connection state for ${peerId}: ${state}`)
+            if (state === 'connected' || state === 'completed') {
+              console.log(`✅ ICE connection established via ${forceRelay ? 'TURN relay' : 'direct/TURN'}`)
+            }
+          })
+        }
+      } catch (e) {
+        // Peer connection might not be accessible
+      }
 
       peer.on('signal', (data: any) => {
         if (!socketRef.current?.connected) return
