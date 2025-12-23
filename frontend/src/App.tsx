@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Laptop, Smartphone, Tablet, Sun, Moon, Link2, User, Pencil, X } from 'lucide-react'
+import { Laptop, Smartphone, Tablet, Sun, Moon, Link2, User, Pencil, X, Info } from 'lucide-react'
 import './App.css'
 import { useWebRTC } from './hooks/useWebRTC'
 import { useFileTransfer } from './hooks/useFileTransfer'
@@ -9,6 +9,7 @@ import { MessageNotification } from './components/MessageNotification'
 import { FileProgressNotification } from './components/FileProgressNotification'
 import { TextInputModal } from './components/TextInputModal'
 import { RecentDevices } from './components/RecentDevices'
+import { AboutModal } from './components/AboutModal'
 import { getOrCreateDeviceName, setStoredDeviceName } from './utils/deviceName'
 import { playNotificationSound, initializeAudioContext } from './utils/notificationSound'
 import { formatFileSize } from './utils/fileSize'
@@ -27,6 +28,7 @@ function App() {
   const [discoveredDevices, setDiscoveredDevices] = useState<Device[]>([])
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [isPairingOpen, setIsPairingOpen] = useState(false)
+  const [isAboutOpen, setIsAboutOpen] = useState(false)
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null)
   const [receivedMessage, setReceivedMessage] = useState<{ text?: string; from: string; variant?: 'received' | 'sent'; file?: { name: string; size: number; type: string; blob: Blob; url: string } } | null>(null)
   const [fileProgress, setFileProgress] = useState<{ fileName: string; progress: number; variant: 'sending' | 'receiving'; to?: string; from?: string } | null>(null)
@@ -514,18 +516,45 @@ function App() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
-        <motion.h1
-          className="text-4xl md:text-5xl lg:text-6xl font-bold font-['Nunito'] tracking-[-0.01em] transition-all duration-300 cursor-pointer select-none"
-          onClick={() => window.location.reload()}
-          whileHover={{ scale: 1.02 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          style={{
-            textShadow: '0 4px 20px rgba(49, 112, 57, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08)'
-          }}
-        >
-          <span className="text-[var(--text-primary)]" style={{ fontWeight: 600 }}>Trans</span>
-          <span className="gradient-text" style={{ fontWeight: 900 }}>Drop</span>
-        </motion.h1>
+        <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => window.location.reload()}>
+          {/* Logo Icon */}
+          <motion.div
+            className="w-10 h-10 md:w-12 md:h-12"
+            whileHover={{ scale: 1.05, rotate: 5 }}
+            transition={{ duration: 0.3 }}
+          >
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+              <defs>
+                <linearGradient id="headerGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="var(--accent-primary)" />
+                  <stop offset="100%" stopColor="#4A9B55" />
+                </linearGradient>
+                <linearGradient id="headerGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="var(--accent-secondary)" />
+                  <stop offset="100%" stopColor="#E8A83A" />
+                </linearGradient>
+              </defs>
+              <rect x="6" y="12" width="22" height="34" rx="5" fill="url(#headerGrad1)" />
+              <rect x="36" y="18" width="22" height="34" rx="5" fill="url(#headerGrad2)" />
+              <path d="M28 29 L36 29" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M33 25 L38 29 L33 33" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <circle cx="17" cy="24" r="2.5" fill="white" opacity="0.9" />
+              <circle cx="47" cy="30" r="2.5" fill="white" opacity="0.9" />
+            </svg>
+          </motion.div>
+
+          <motion.h1
+            className="text-3xl md:text-4xl lg:text-5xl font-bold font-['Nunito'] tracking-[-0.01em] transition-all duration-300"
+            whileHover={{ scale: 1.02 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            style={{
+              textShadow: '0 4px 20px rgba(49, 112, 57, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08)'
+            }}
+          >
+            <span className="text-[var(--text-primary)]" style={{ fontWeight: 600 }}>Trans</span>
+            <span className="gradient-text" style={{ fontWeight: 900 }}>Drop</span>
+          </motion.h1>
+        </div>
 
         <div className="flex items-center gap-3">
           <motion.button
@@ -594,6 +623,18 @@ function App() {
               </div>
             </div>
           </div>
+
+          {/* Info Button */}
+          <motion.button
+            onClick={() => setIsAboutOpen(true)}
+            className="glass-card glow-button p-2.5 text-[var(--text-primary)] cursor-pointer flex items-center justify-center"
+            aria-label="About TransDrop"
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <Info size={20} />
+          </motion.button>
         </div>
       </motion.div>
 
@@ -817,6 +858,12 @@ function App() {
         deviceName={deviceName}
         currentRoomId={currentRoomId}
         connectedDevicesCount={discoveredDevices.length}
+      />
+
+      {/* About Modal */}
+      <AboutModal
+        isOpen={isAboutOpen}
+        onClose={() => setIsAboutOpen(false)}
       />
 
       {/* Message Notification - For both received and sent messages */}
