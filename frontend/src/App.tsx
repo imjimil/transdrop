@@ -494,12 +494,9 @@ function App() {
 
 
   return (
-    <motion.div
+    <div
       className="min-h-screen flex flex-col relative w-full overflow-hidden bg-[var(--bg-primary)]"
       style={{ maxWidth: '100vw' }}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
       onContextMenu={(e) => e.preventDefault()}
     >
       {/* Premium Background - Morphing Blobs */}
@@ -513,9 +510,9 @@ function App() {
       {/* Top Bar with Pair Icon */}
       <motion.div
         className="flex items-center justify-between p-4 sm:p-6 relative z-20"
-        initial={{ y: -24, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
       >
         <motion.h1
           className="text-4xl md:text-5xl lg:text-6xl font-bold font-['Nunito'] tracking-[-0.01em] transition-all duration-300 cursor-pointer select-none"
@@ -605,9 +602,9 @@ function App() {
         {/* Instruction Text */}
         <motion.div
           className="text-center mb-8 px-6 py-4"
-          initial={{ opacity: 0, y: -15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
         >
           <p className="text-lg sm:text-xl md:text-2xl text-[var(--text-primary)] font-['Biryani'] font-semibold mb-3 tracking-tight" style={{ textShadow: '0 2px 8px rgba(255, 251, 235, 0.8), 0 1px 3px rgba(255, 251, 235, 0.6)' }}>
             Open TransDrop on other devices to send files
@@ -638,18 +635,12 @@ function App() {
         )}
 
         {/* Discovery Area - User in Center, Devices Around */}
-        <motion.div
+        <div
           className="relative w-full max-w-4xl h-64 sm:h-80 md:h-96 flex flex-col items-center justify-center px-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.3 }}
         >
           {/* User Icon with Premium Glassmorphic Design */}
-          <motion.div
+          <div
             className="relative z-10 mb-8 sm:mb-10 md:mb-12"
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.7, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
           >
             {/* Concentric Circles with Gradient Glow */}
             <div className="concentric-circles">
@@ -676,18 +667,18 @@ function App() {
             >
               <User size={28} strokeWidth={2} className="text-[var(--accent-primary)]" />
             </motion.div>
-          </motion.div>
+          </div>
 
           {/* Devices Below User Icon - Clean Row Formation */}
           <AnimatePresence>
             {discoveredDevices.length > 0 ? (
               <motion.div
                 className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 md:gap-5 w-full max-w-[400px] sm:max-w-[500px] md:max-w-[600px]"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.5 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
               >
-                {discoveredDevices.map((device, index) => {
+                {discoveredDevices.map((device) => {
                   // Get appropriate icon component
                   const DeviceIcon = device.type === 'phone' ? Smartphone :
                     device.type === 'tablet' ? Tablet : Laptop;
@@ -696,18 +687,10 @@ function App() {
                     <motion.div
                       key={device.id}
                       className="relative group cursor-pointer"
-                      initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                      animate={{
-                        opacity: 1,
-                        scale: 1,
-                        y: 0
-                      }}
-                      exit={{ opacity: 0, scale: 0.8, y: 10 }}
-                      transition={{
-                        delay: index * 0.1,
-                        duration: 0.6,
-                        ease: [0.16, 1, 0.3, 1]
-                      }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
                       onClick={(e) => {
                         if (!isMobile) {
                           handleDeviceClick(device, e)
@@ -781,18 +764,21 @@ function App() {
             ) : null}
           </AnimatePresence>
 
-        </motion.div>
+        </div>
       </div>
 
       {/* Bottom Bar - Device Identity */}
       <motion.div
         className="flex items-center justify-center gap-3 p-4 pb-6 sm:p-6 relative z-20"
-        style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        style={{
+          paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))',
+          background: 'linear-gradient(to top, var(--bg-primary) 0%, transparent 100%)'
+        }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
       >
-        <p className="text-sm text-[var(--text-secondary)] font-['Biryani'] drop-shadow-sm">You are known as</p>
+        <p className="text-sm text-[var(--text-primary)] font-['Biryani'] font-medium opacity-80">You are known as</p>
         <motion.div
           className="glass-card px-4 py-2.5 inline-flex items-center gap-3 text-sm font-['Biryani'] text-[var(--text-primary)] cursor-pointer"
           whileHover={{ scale: 1.02, y: -2 }}
@@ -895,7 +881,7 @@ function App() {
           />
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   )
 }
 

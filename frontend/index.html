@@ -1,19 +1,38 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" style="background-color: #FFFBEB;">
 
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#FFFBEB" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Biryani:wght@200;300;400;600;700;800;900&family=Nunito:wght@200..1000&display=swap"
     rel="stylesheet">
   <title>TransDrop</title>
+  <style>
+    /* Critical CSS to prevent white flash */
+    html,
+    body,
+    #root {
+      background-color: #FFFBEB;
+      margin: 0;
+      padding: 0;
+    }
+
+    [data-theme="dark"] body,
+    [data-theme="dark"] html,
+    [data-theme="dark"] #root {
+      background-color: #0A0A08;
+    }
+  </style>
 </head>
 
-<body>
+<body style="background-color: #FFFBEB; margin: 0;">
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>
