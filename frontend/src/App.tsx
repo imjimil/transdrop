@@ -640,7 +640,7 @@ function App() {
         >
           {/* User Icon with Premium Glassmorphic Design */}
           <div
-            className="relative z-10 mb-8 sm:mb-10 md:mb-12"
+            className="relative z-10 mb-4 sm:mb-6 flex flex-col items-center"
           >
             {/* Concentric Circles with Gradient Glow */}
             <div className="concentric-circles">
@@ -667,6 +667,46 @@ function App() {
             >
               <User size={28} strokeWidth={2} className="text-[var(--accent-primary)]" />
             </motion.div>
+
+            {/* Device Name - Below User Icon */}
+            <div
+              className="mt-4 flex items-center gap-2 px-4 py-2 rounded-full cursor-pointer"
+              style={{
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-primary)'
+              }}
+              onClick={() => setIsEditingName(true)}
+            >
+              {isEditingName ? (
+                <input
+                  type="text"
+                  value={deviceName}
+                  onChange={(e) => {
+                    const newName = e.target.value
+                    setDeviceName(newName)
+                    setStoredDeviceName(newName)
+                  }}
+                  onBlur={() => {
+                    setIsEditingName(false)
+                    setStoredDeviceName(deviceName)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      setIsEditingName(false)
+                      setStoredDeviceName(deviceName)
+                    }
+                  }}
+                  className="bg-transparent border-0 p-0 text-sm font-semibold text-[var(--text-primary)] font-['Biryani'] w-32 focus:outline-none focus:ring-0 text-center"
+                  autoFocus
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <>
+                  <span className="text-sm font-semibold gradient-text">{deviceName}</span>
+                  <Pencil size={12} strokeWidth={2} className="text-[var(--text-secondary)]" />
+                </>
+              )}
+            </div>
           </div>
 
           {/* Devices Below User Icon - Clean Row Formation */}
@@ -767,62 +807,7 @@ function App() {
         </div>
       </div>
 
-      {/* Bottom Bar - Device Identity */}
-      <motion.div
-        className="flex items-center justify-center gap-3 p-4 pb-6 sm:p-6 relative z-20"
-        style={{
-          paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))',
-          background: 'linear-gradient(to top, var(--bg-primary) 0%, transparent 100%)'
-        }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <p className="text-sm text-[var(--text-primary)] font-['Biryani'] font-medium opacity-80">You are known as</p>
-        <motion.div
-          className="glass-card px-4 py-2.5 inline-flex items-center gap-3 text-sm font-['Biryani'] text-[var(--text-primary)] cursor-pointer"
-          whileHover={{ scale: 1.02, y: -2 }}
-          whileTap={{ scale: 0.98 }}
-          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-        >
-          {isEditingName ? (
-            <input
-              type="text"
-              value={deviceName}
-              onChange={(e) => {
-                const newName = e.target.value
-                setDeviceName(newName)
-                setStoredDeviceName(newName)
-              }}
-              onBlur={() => {
-                setIsEditingName(false)
-                setStoredDeviceName(deviceName)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  setIsEditingName(false)
-                  setStoredDeviceName(deviceName)
-                }
-              }}
-              className="bg-transparent border-0 p-0 text-sm font-medium text-[var(--text-primary)] font-['Biryani'] w-32 focus:outline-none focus:ring-0"
-              autoFocus
-            />
-          ) : (
-            <>
-              <span className="text-sm font-semibold gradient-text">{deviceName}</span>
-              <motion.button
-                onClick={() => setIsEditingName(true)}
-                className="text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors"
-                aria-label="Edit device name"
-                whileHover={{ scale: 1.15 }}
-                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <Pencil size={12} strokeWidth={2} />
-              </motion.button>
-            </>
-          )}
-        </motion.div>
-      </motion.div>
+
 
       {/* Pairing Modal */}
       <PairingModal
