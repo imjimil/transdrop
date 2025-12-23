@@ -19,11 +19,10 @@ export function FileProgressNotification({ fileName, progress, variant, from, on
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.95 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-6 z-50 max-w-md w-[calc(100%-2rem)] sm:w-full mx-auto sm:mx-0 p-4 sm:p-0"
-      style={{ maxWidth: 'calc(100vw - 2rem)' }}
+      className="fixed bottom-6 right-4 sm:right-6 z-50 w-[calc(100%-2rem)] sm:w-[360px]"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="bg-[var(--bg-elevated)] border-[1.5px] border-[var(--border-primary)] rounded-[1.25rem] shadow-[var(--shadow-md)] transition-all duration-300 p-6 shadow-lg">
+      <div className="bg-[var(--bg-elevated)] border-[1.5px] border-[var(--border-primary)] rounded-2xl shadow-[var(--shadow-lg)] transition-all duration-300 p-5">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1 min-w-0 pr-4">

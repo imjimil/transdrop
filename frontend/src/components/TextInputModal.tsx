@@ -98,7 +98,7 @@ export function TextInputModal({ isOpen, onClose, onSubmit, recipientName }: Tex
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  transition={{ 
+                  transition={{
                     type: "spring",
                     stiffness: 200,
                     damping: 15
@@ -107,7 +107,7 @@ export function TextInputModal({ isOpen, onClose, onSubmit, recipientName }: Tex
                 >
                   <Check size={48} className="text-[var(--accent-primary)]" strokeWidth={3} />
                 </motion.div>
-                <p 
+                <p
                   className="text-xl font-semibold text-[var(--text-primary)] font-['Biryani']"
                 >
                   Sent!
@@ -140,7 +140,7 @@ export function TextInputModal({ isOpen, onClose, onSubmit, recipientName }: Tex
                   <motion.button
                     type="submit"
                     disabled={!text.trim() || isSending}
-                    className="bg-[var(--accent-primary)] border-[1.5px] border-[var(--accent-primary)] rounded-xl px-7 py-3.5 text-[var(--bg-primary)] font-medium text-[0.9375rem] font-['Biryani'] transition-all duration-300 cursor-pointer shadow-[var(--shadow-sm)] hover:bg-[var(--accent-dark)] hover:border-[var(--accent-dark)] hover:shadow-[var(--shadow-md)] active:shadow-[var(--shadow-sm)] flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-[var(--accent-primary)] border-[1.5px] border-[var(--accent-primary)] rounded-xl px-7 py-3.5 text-white font-medium text-[0.9375rem] font-['Biryani'] transition-all duration-300 cursor-pointer shadow-[var(--shadow-sm)] hover:bg-[#255A2D] hover:border-[#255A2D] hover:shadow-[var(--shadow-md)] active:shadow-[var(--shadow-sm)] flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     whileHover={{ y: -1 }}
                     whileTap={{ y: 0 }}
                     transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}

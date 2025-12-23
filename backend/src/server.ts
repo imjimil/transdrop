@@ -27,26 +27,26 @@ io.on('connection', (socket) => {
   socket.on('join-room', (data: { roomId: string, deviceName?: string }) => {
     const roomId = typeof data === 'string' ? data : data.roomId
     const deviceName = typeof data === 'string' ? undefined : data.deviceName
-    
+
     socket.join(roomId)
-    
+
     if (!rooms.has(roomId)) {
       rooms.set(roomId, new Set())
     }
     rooms.get(roomId)!.add(socket.id)
-    
+
     // Store device info
     if (deviceName) {
       deviceInfo.set(socket.id, { name: deviceName, roomId })
     }
-    
+
     // Notify others in the room with device info
     const deviceInfoForPeer = deviceInfo.get(socket.id)
-    socket.to(roomId).emit('peer-joined', { 
+    socket.to(roomId).emit('peer-joined', {
       peerId: socket.id,
       deviceName: deviceInfoForPeer?.name
     })
-    
+
     // Broadcast to only interested sockets (devices that have this device in recent connections)
     // This is much more efficient than broadcasting to all 10k+ users
     if (deviceName) {
@@ -65,7 +65,7 @@ io.on('connection', (socket) => {
         })
       }
     }
-    
+
     // Send list of existing peers with their device names
     const peers = Array.from(rooms.get(roomId)!).filter(id => id !== socket.id)
     const peersWithInfo = peers.map(peerId => ({
@@ -148,7 +148,7 @@ io.on('connection', (socket) => {
       }
     }
     deviceInfo.delete(socket.id)
-    
+
     // Clean up subscriptions
     for (const [deviceName, subscribers] of deviceSubscriptions.entries()) {
       subscribers.delete(socket.id)
